@@ -22,7 +22,7 @@ var options struct {
 }
 
 func mainPage(res http.ResponseWriter, req *http.Request) {
-	res.Write([]byte("Для обновления параметров используйте ссылку в формате http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>"))
+	http.Error(res, "Для обновления параметров используйте ссылку в формате http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>", http.StatusBadRequest)
 }
 
 func updatePage(res http.ResponseWriter, req *http.Request) {
