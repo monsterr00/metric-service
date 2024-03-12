@@ -4,11 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"os"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 var options struct {
@@ -17,10 +18,6 @@ var options struct {
 	pollInterval   int64
 }
 
-// var serverPort = 8080
-// var serverHost = "http://localhost:"
-// var reportInterval = 10
-// var pollInterval = 2
 var gauge map[string]float64
 var counter map[string]int64
 
@@ -107,43 +104,42 @@ func main() {
 
 	go gaugeMetrics()
 
-	client := http.Client{}
+	client := resty.New()
+
+	client.
+		// устанавливаем количество повторений
+		SetRetryCount(3).
+		// длительность ожидания между попытками
+		SetRetryWaitTime(30 * time.Second).
+		// длительность максимального ожидания
+		SetRetryMaxWaitTime(90 * time.Second)
 
 	for {
 		for k, v := range gauge {
 			metricGaugeURL := fmt.Sprintf("/update/gauge/%s/%f", k, v)
 			requestURL := fmt.Sprintf("%s%s%s", "http://", options.host, metricGaugeURL)
-			req, err := http.NewRequest(http.MethodPost, requestURL, http.NoBody)
+
+			req, err := client.R().
+				SetHeader("Content-Type", "text/plain").
+				Post(requestURL)
 			if err != nil {
-				fmt.Printf("client: could not create request: %s\n", err)
+				fmt.Printf("client: error making http-request: %s\n", err)
 				os.Exit(1)
 			}
-			req.Header.Set("Content-Type", "text/plain")
-			res, err := client.Do(req)
-			if err != nil {
-				fmt.Printf("client: error making http request: %s\n", err)
-				os.Exit(1)
-			}
-			res.Body.Close()
-			fmt.Printf("Status code: %d, time: %s\n", res.StatusCode, time.Now())
+			fmt.Printf("Status code: %d\n", req.StatusCode())
 		}
 		for k, v := range counter {
 			metricCounterURL := fmt.Sprintf("/update/counter/%s/%d", k, v)
 			requestURL := fmt.Sprintf("%s%s%s", "http://", options.host, metricCounterURL)
-			req, err := http.NewRequest(http.MethodPost, requestURL, http.NoBody)
+
+			req, err := client.R().
+				SetHeader("Content-Type", "text/plain").
+				Post(requestURL)
 			if err != nil {
-				fmt.Printf("client: could not create request: %s\n", err)
+				fmt.Printf("client: error making http-request: %s\n", err)
 				os.Exit(1)
 			}
-			req.Header.Set("Content-Type", "text/plain")
-			res, err := client.Do(req)
-			if err != nil {
-				fmt.Printf("client: error making http request: %s\n", err)
-				os.Exit(1)
-			}
-			res.Body.Close()
-			//fmt.Printf("Status code: %d\n", res.StatusCode)
-			fmt.Printf("Status code: %d\n", counter["PollCount"])
+			fmt.Printf("Status code: %d\n", req.StatusCode())
 		}
 		time.Sleep(time.Duration(options.reportInterval) * time.Second)
 	}
