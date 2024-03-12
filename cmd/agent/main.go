@@ -10,20 +10,46 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 )
-
-var options struct {
-	host           string
-	reportInterval int64
-	pollInterval   int64
-}
 
 var gauge map[string]float64
 var counter map[string]int64
 
+func sendToServer(client *resty.Client) {
+	for k, v := range gauge {
+		metricGaugeURL := fmt.Sprintf("/update/gauge/%s/%f", k, v)
+		requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, metricGaugeURL)
+
+		req, err := client.R().
+			SetHeader("Content-Type", "text/plain").
+			Post(requestURL)
+		if err != nil {
+			fmt.Printf("Client: error sending http-request: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Status code: %d\n", req.StatusCode())
+	}
+	for k, v := range counter {
+		metricCounterURL := fmt.Sprintf("/update/counter/%s/%d", k, v)
+		requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, metricCounterURL)
+
+		req, err := client.R().
+			SetHeader("Content-Type", "text/plain").
+			Post(requestURL)
+		if err != nil {
+			fmt.Printf("Client: error sending http-request: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Status code: %d\n", req.StatusCode())
+	}
+
+}
+
 func gaugeMetrics() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
+
 	for {
 		gauge["Alloc"] = float64(memStats.Alloc)
 		gauge["BuckHashSys"] = float64(memStats.BuckHashSys)
@@ -58,39 +84,36 @@ func gaugeMetrics() {
 		gauge["RandomValue"] = random.Float64()
 
 		counter["PollCount"] += 1
-		time.Sleep(time.Duration(options.pollInterval) * time.Second)
+		time.Sleep(time.Duration(config.ClientOptions.PollInterval) * time.Second)
 	}
 }
 
 func init() {
-	flag.StringVar(&options.host, "a", "localhost:8080", "server host")
-	flag.Int64Var(&options.reportInterval, "r", 2, "reportInterval value")
-	flag.Int64Var(&options.pollInterval, "p", 10, "pollInterval value")
+	flag.StringVar(&config.ClientOptions.Host, "a", "localhost:8080", "server host")
+	flag.Int64Var(&config.ClientOptions.ReportInterval, "r", 2, "reportInterval value")
+	flag.Int64Var(&config.ClientOptions.PollInterval, "p", 10, "pollInterval value")
 
 	var err error
 
 	envAddress, isSet := os.LookupEnv("ADDRESS")
-
 	if isSet {
-		options.host = envAddress
+		config.ClientOptions.Host = envAddress
 	}
 
 	envRepInterval, isSet := os.LookupEnv("REPORT_INTERVAL")
-
 	if isSet {
-		options.reportInterval, err = strconv.ParseInt(envRepInterval, 10, 64)
+		config.ClientOptions.ReportInterval, err = strconv.ParseInt(envRepInterval, 10, 64)
 		if err != nil {
-			fmt.Printf("wrong parametr type %s", err)
+			fmt.Printf("Wrong parametr type for REPORT_INTERVAL")
 			os.Exit(1)
 		}
 	}
 
 	envPollInterval, isSet := os.LookupEnv("POLL_INTERVAL")
-
 	if isSet {
-		options.pollInterval, err = strconv.ParseInt(envPollInterval, 10, 64)
+		config.ClientOptions.PollInterval, err = strconv.ParseInt(envPollInterval, 10, 64)
 		if err != nil {
-			fmt.Printf("wrong parametr type %s", err)
+			fmt.Printf("wrong parametr type for POLL_INTERVAL")
 			os.Exit(1)
 		}
 	}
@@ -115,32 +138,7 @@ func main() {
 		SetRetryMaxWaitTime(90 * time.Second)
 
 	for {
-		for k, v := range gauge {
-			metricGaugeURL := fmt.Sprintf("/update/gauge/%s/%f", k, v)
-			requestURL := fmt.Sprintf("%s%s%s", "http://", options.host, metricGaugeURL)
-
-			req, err := client.R().
-				SetHeader("Content-Type", "text/plain").
-				Post(requestURL)
-			if err != nil {
-				fmt.Printf("client: error making http-request: %s\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Status code: %d\n", req.StatusCode())
-		}
-		for k, v := range counter {
-			metricCounterURL := fmt.Sprintf("/update/counter/%s/%d", k, v)
-			requestURL := fmt.Sprintf("%s%s%s", "http://", options.host, metricCounterURL)
-
-			req, err := client.R().
-				SetHeader("Content-Type", "text/plain").
-				Post(requestURL)
-			if err != nil {
-				fmt.Printf("client: error making http-request: %s\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Status code: %d\n", req.StatusCode())
-		}
-		time.Sleep(time.Duration(options.reportInterval) * time.Second)
+		sendToServer(client)
+		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
 	}
 }
