@@ -29,37 +29,49 @@ func updatePage(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodPost {
 		splitPath := strings.Split(req.URL.Path, "/")
 
-		// тип метрики
-		memType := splitPath[2]
-		// имя метрики
-		memName := splitPath[3]
-		// значение метрики
-		memValue := splitPath[4]
+		var memName string
+		var memValue string
 
-		switch memType {
-		case "gauge":
-			var err error
-			memStorage.Gauge[memName], err = strconv.ParseFloat(memValue, 64)
+		// проверяем возможное наличие типа метрики
+		if len(splitPath) > 4 {
+			// тип метрики
+			memType := splitPath[2]
+			// имя метрики
+			memName = splitPath[3]
+			// значение метрики
+			memValue = splitPath[4]
 
-			if err != nil {
-				http.Error(res, "Wrong metric value", http.StatusBadRequest)
+			switch memType {
+			case "gauge":
+				if len(splitPath) > 3 {
+
+					var err error
+					memStorage.Gauge[memName], err = strconv.ParseFloat(memValue, 64)
+
+					if err != nil {
+						http.Error(res, "Wrong metric value", http.StatusBadRequest)
+						return
+					}
+				}
+
+				res.Write([]byte(fmt.Sprintf("%f", memStorage.Gauge[memName])))
+			case "counter":
+				counterValue, err := strconv.ParseInt(memValue, 10, 64)
+
+				if err != nil {
+					http.Error(res, "Wrong metric value", http.StatusBadRequest)
+					return
+				}
+
+				memStorage.Counter[memName] += counterValue
+
+				res.Write([]byte(fmt.Sprintf("%d", memStorage.Counter[memName])))
+			default:
+				http.Error(res, "Wrong metric type", http.StatusBadRequest)
 				return
 			}
-
-			res.Write([]byte(fmt.Sprintf("%f", memStorage.Gauge[memName])))
-		case "counter":
-			counterValue, err := strconv.ParseInt(memValue, 10, 64)
-
-			if err != nil {
-				http.Error(res, "Wrong metric value", http.StatusBadRequest)
-				return
-			}
-
-			memStorage.Counter[memName] += counterValue
-
-			res.Write([]byte(fmt.Sprintf("%d", memStorage.Counter[memName])))
-		default:
-			http.Error(res, "Wrong metric type", http.StatusBadRequest)
+		} else {
+			http.Error(res, "No metric type or metric value", http.StatusNotFound)
 			return
 		}
 
@@ -69,7 +81,7 @@ func updatePage(res http.ResponseWriter, req *http.Request) {
 		fmt.Printf("%s:%f\n", memName, memStorage.Gauge[memName])
 		return
 	} else {
-		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
+		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
 }
@@ -99,15 +111,6 @@ func main() {
 }
 
 /*
-ADDRESS отвечает за адрес эндпоинта HTTP-сервера.
-
-export FILES=test1.txt:test2.txt
-export TASK_DURATION=5s
-
-Приоритет параметров должен быть таким:
-Если указана переменная окружения, то используется она.
-Если нет переменной окружения, но есть аргумент командной строки (флаг), то используется он.
-Если нет ни переменной окружения, ни флага, то используется значение по умолчанию.
 
 Задание по треку «Сервис сбора метрик и алертинга»
 + Редиректы не поддерживаются.
