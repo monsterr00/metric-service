@@ -24,10 +24,6 @@ var options struct {
 }
 
 func getMetric(res http.ResponseWriter, req *http.Request) {
-
-	//	- Доработайте сервер так, чтобы в ответ на запрос GET http://<АДРЕС_СЕРВЕРА>/value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> он возвращал текущее значение метрики в текстовом виде со статусом http.StatusOK.
-	//	- При попытке запроса неизвестной метрики сервер должен возвращать http.StatusNotFound.
-
 	if req.Method == http.MethodGet {
 		splitPath := strings.Split(req.URL.Path, "/")
 		if len(splitPath) > 3 {
@@ -87,7 +83,6 @@ func mainPage(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-
 }
 
 func updatePage(res http.ResponseWriter, req *http.Request) {
