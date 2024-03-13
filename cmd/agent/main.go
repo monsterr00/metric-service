@@ -43,7 +43,6 @@ func sendToServer(client *resty.Client) {
 		}
 		fmt.Printf("Status code: %d\n", req.StatusCode())
 	}
-
 }
 
 func gaugeMetrics() {
