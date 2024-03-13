@@ -44,7 +44,7 @@ func GetMetric(res http.ResponseWriter, req *http.Request) {
 			case "gauge":
 				memValue, isSet := config.MemStorage.Gauge[memName]
 				if isSet {
-					res.Write([]byte(fmt.Sprintf("%.2f", memValue)))
+					res.Write([]byte(fmt.Sprintf("%.3f", memValue)))
 				} else {
 					http.Error(res, "No metric", http.StatusNotFound)
 					return
