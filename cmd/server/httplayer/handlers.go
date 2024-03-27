@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func (api *httpApi) getMainPage(res http.ResponseWriter, req *http.Request) {
+func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
 	var body string
 
 	gauge, err := api.app.GetGaugeMetrics()
@@ -36,7 +36,7 @@ func (api *httpApi) getMainPage(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (api *httpApi) getMetric(res http.ResponseWriter, req *http.Request) {
+func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 	const gaugeMetricType = "gauge"
 	const counterMetricType = "counter"
 	const metricNamePosition = 3
@@ -90,7 +90,7 @@ func (api *httpApi) getMetric(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (api *httpApi) postMetric(res http.ResponseWriter, req *http.Request) {
+func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 	splitPath := strings.Split(req.URL.Path, "/")
 
 	const metricNamePosition = 3

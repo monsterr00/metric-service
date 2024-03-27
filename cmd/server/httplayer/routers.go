@@ -9,13 +9,13 @@ import (
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 )
 
-type httpApi struct {
+type httpAPI struct {
 	router *chi.Mux
 	app    applayer.App
 }
 
-func New(appLayer applayer.App) *httpApi {
-	api := &httpApi{
+func New(appLayer applayer.App) *httpAPI {
+	api := &httpAPI{
 		router: chi.NewRouter(),
 		app:    appLayer,
 	}
@@ -24,13 +24,13 @@ func New(appLayer applayer.App) *httpApi {
 	return api
 }
 
-func (api *httpApi) setupRoutes() {
+func (api *httpAPI) setupRoutes() {
 	api.router.Get("/", api.getMainPage)
 	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.postMetric)
 	api.router.Get("/value/{metricType}/{metricName}", api.getMetric)
 }
 
-func (api *httpApi) Engage() {
+func (api *httpAPI) Engage() {
 	err := http.ListenAndServe(config.ServerOptions.Host, api.router)
 	if err != nil {
 		log.Fatal(err)

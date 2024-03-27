@@ -38,7 +38,7 @@ func TestMainPage(t *testing.T) {
 			// создаём новый Recorder
 			w := httptest.NewRecorder()
 
-			api := &httpApi{
+			api := &httpAPI{
 				router: chi.NewRouter(),
 				app:    applayer.New(storelayer.New()),
 			}
