@@ -1,11 +1,9 @@
 package config
 
-type memStorage struct {
+type MemStorage struct {
 	Gauge   map[string]float64
 	Counter map[string]int64
 }
-
-var MemStorage memStorage
 
 var ServerOptions struct {
 	Host string
