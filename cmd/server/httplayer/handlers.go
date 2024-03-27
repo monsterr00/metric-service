@@ -30,7 +30,10 @@ func (api *httpApi) getMainPage(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	res.WriteHeader(http.StatusOK)
-	res.Write([]byte(body))
+	_, err = res.Write([]byte(body))
+	if err != nil {
+		fmt.Printf("Server: error writing request body %s\n", err)
+	}
 }
 
 func (api *httpApi) getMetric(res http.ResponseWriter, req *http.Request) {
@@ -58,7 +61,10 @@ func (api *httpApi) getMetric(res http.ResponseWriter, req *http.Request) {
 		case gaugeMetricType:
 			memValue, isSet := gauge[memName]
 			if isSet {
-				res.Write([]byte(fmt.Sprintf("%.3f", memValue)))
+				_, err = res.Write([]byte(fmt.Sprintf("%.3f", memValue)))
+				if err != nil {
+					fmt.Printf("Server: error writing request body %s\n", err)
+				}
 			} else {
 				http.Error(res, "No metric", http.StatusNotFound)
 				return
@@ -66,7 +72,10 @@ func (api *httpApi) getMetric(res http.ResponseWriter, req *http.Request) {
 		case counterMetricType:
 			memValue, isSet := counter[memName]
 			if isSet {
-				res.Write([]byte(fmt.Sprintf("%d", memValue)))
+				_, err = res.Write([]byte(fmt.Sprintf("%d", memValue)))
+				if err != nil {
+					fmt.Printf("Server: error writing request body %s\n", err)
+				}
 			} else {
 				http.Error(res, "No metric", http.StatusNotFound)
 				return
@@ -118,7 +127,10 @@ func (api *httpApi) postMetric(res http.ResponseWriter, req *http.Request) {
 					return
 				}
 			}
-			res.Write([]byte(fmt.Sprintf("%f", gauge[memName])))
+			_, err = res.Write([]byte(fmt.Sprintf("%f", gauge[memName])))
+			if err != nil {
+				fmt.Printf("Server: error writing request body %s\n", err)
+			}
 		case "counter":
 			counterValue, err := strconv.ParseInt(memValue, 10, 64)
 			if err != nil {
@@ -127,7 +139,10 @@ func (api *httpApi) postMetric(res http.ResponseWriter, req *http.Request) {
 			}
 
 			counter[memName] += counterValue
-			res.Write([]byte(fmt.Sprintf("%d", counter[memName])))
+			_, err = res.Write([]byte(fmt.Sprintf("%d", counter[memName])))
+			if err != nil {
+				fmt.Printf("Server: error writing request body %s\n", err)
+			}
 		default:
 			http.Error(res, "Wrong metric type", http.StatusBadRequest)
 			return
