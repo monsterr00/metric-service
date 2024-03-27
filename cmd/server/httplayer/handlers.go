@@ -63,7 +63,7 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 			memValue, isSet := gauge[memName]
 			if isSet {
 				//_, err = res.Write([]byte(fmt.Sprintf("%.3f", math.Round(memValue))))
-				_, err = res.Write([]byte(fmt.Sprintf("%f", math.Round(memValue))))
+				_, err = res.Write([]byte(fmt.Sprintf("%.3f", math.Round(memValue*1000)/1000)))
 				if err != nil {
 					fmt.Printf("Server: error writing request body %s\n", err)
 				}
