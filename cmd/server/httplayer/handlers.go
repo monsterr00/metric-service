@@ -2,7 +2,6 @@ package httplayer
 
 import (
 	"fmt"
-	"math"
 
 	"net/http"
 	"strconv"
@@ -62,8 +61,7 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 		case gaugeMetricType:
 			memValue, isSet := gauge[memName]
 			if isSet {
-				//_, err = res.Write([]byte(fmt.Sprintf("%.3f", math.Round(memValue))))
-				_, err = res.Write([]byte(fmt.Sprintf("%.3f", math.Round(memValue*1000)/1000)))
+				_, err = res.Write([]byte(strconv.FormatFloat(memValue, 'f', -1, 64)))
 				if err != nil {
 					fmt.Printf("Server: error writing request body %s\n", err)
 				}
