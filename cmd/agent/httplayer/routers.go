@@ -9,13 +9,13 @@ import (
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 )
 
-type httpApi struct {
+type httpAPI struct {
 	client *resty.Client
 	app    applayer.App
 }
 
-func New(appLayer applayer.App) *httpApi {
-	api := &httpApi{
+func New(appLayer applayer.App) *httpAPI {
+	api := &httpAPI{
 		client: resty.New(),
 		app:    appLayer,
 	}
@@ -24,7 +24,7 @@ func New(appLayer applayer.App) *httpApi {
 	return api
 }
 
-func (api *httpApi) setupClient() {
+func (api *httpAPI) setupClient() {
 	api.client.
 		// устанавливаем количество повторений
 		SetRetryCount(3).
@@ -34,7 +34,7 @@ func (api *httpApi) setupClient() {
 		SetRetryMaxWaitTime(90 * time.Second)
 }
 
-func (api *httpApi) Engage() {
+func (api *httpAPI) Engage() {
 	go api.app.SetMetrics()
 
 	for {
@@ -44,7 +44,7 @@ func (api *httpApi) Engage() {
 
 }
 
-func (api *httpApi) sendToServer() {
+func (api *httpAPI) sendToServer() {
 	var err error
 	gauge, err := api.app.GetGaugeMetrics()
 	if err != nil {
