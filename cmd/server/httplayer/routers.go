@@ -22,7 +22,11 @@ func New(appLayer applayer.App) *httpAPI {
 	if err != nil {
 		log.Printf("Server: logger start error")
 	}
-	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			log.Printf("Server: logger sync error")
+		}
+	}()
 
 	api := &httpAPI{
 		router:      chi.NewRouter(),

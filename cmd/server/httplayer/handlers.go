@@ -93,7 +93,10 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+	_, err = res.Write(resp)
+	if err != nil {
+		fmt.Printf("Server: error writing request body %s\n", err)
+	}
 }
 
 func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) {
@@ -294,5 +297,8 @@ func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 	api.saveMetricsSync()
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+	_, err = res.Write(resp)
+	if err != nil {
+		fmt.Printf("Server: error writing request body %s\n", err)
+	}
 }
