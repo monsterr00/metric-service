@@ -192,7 +192,7 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 				http.Error(res, "Wrong metric value", http.StatusBadRequest)
 				return
 			}
-			*metric.Delta = counterValue
+			metric.Delta = &counterValue
 
 			_, isSet := metrics[metric.ID]
 			if isSet {
