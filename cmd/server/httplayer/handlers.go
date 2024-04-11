@@ -170,11 +170,12 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 
 				metric.ID = memName
 				metric.MType = gaugeMetricType
-				*metric.Value, err = strconv.ParseFloat(memValue, 64)
+				metricValue, err := strconv.ParseFloat(memValue, 64)
 				if err != nil {
 					http.Error(res, "Wrong metric value", http.StatusBadRequest)
 					return
 				}
+				metric.Value = &metricValue
 				metrics[memName] = metric
 			}
 			_, err = res.Write([]byte(fmt.Sprintf("%f", *metrics[memName].Value)))
