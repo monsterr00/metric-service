@@ -38,9 +38,9 @@ func New(appLayer applayer.App) *httpAPI {
 
 func (api *httpAPI) setupRoutes() {
 	api.router.Get("/", api.WithLogging(api.GzipMiddleware(api.getMainPage)))
-	//api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.postMetric))
+	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.postMetricNoJSON))
 	api.router.Post("/update/", api.WithLogging(api.GzipMiddleware(api.postMetric)))
-	//api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.getMetric))
+	api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.getMetricNoJSON))
 	api.router.Post("/value/", api.WithLogging(api.GzipMiddleware(api.getMetric)))
 }
 

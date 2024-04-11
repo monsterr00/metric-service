@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"net/http"
 
@@ -11,8 +13,10 @@ import (
 )
 
 const (
-	gaugeMetricType   = "gauge"
-	counterMetricType = "counter"
+	gaugeMetricType     = "gauge"
+	counterMetricType   = "counter"
+	metricNamePosition  = 3
+	metricValuePosition = 4
 )
 
 func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
@@ -90,6 +94,139 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	res.Write(resp)
+}
+
+func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) {
+	// считывем сохраненные метрики
+	metrics, err := api.app.Metric()
+	if err != nil {
+		fmt.Printf("Server: error getting metrics %s\n", err)
+	}
+
+	splitPath := strings.Split(req.URL.Path, "/")
+	if len(splitPath) > metricNamePosition {
+		// тип метрики
+		memType := splitPath[2]
+		// имя метрики
+		memName := splitPath[3]
+
+		switch memType {
+		case gaugeMetricType:
+			memValue, isSet := metrics[memName]
+			if isSet {
+				_, err = res.Write([]byte(strconv.FormatFloat(*memValue.Value, 'f', -1, 64)))
+				if err != nil {
+					fmt.Printf("Server: error writing request body %s\n", err)
+				}
+			} else {
+				http.Error(res, "No metric", http.StatusNotFound)
+				return
+			}
+		case counterMetricType:
+			memValue, isSet := metrics[memName]
+			if isSet {
+				_, err = res.Write([]byte(fmt.Sprintf("%d", *memValue.Delta)))
+				if err != nil {
+					fmt.Printf("Server: error writing request body %s\n", err)
+				}
+			} else {
+				http.Error(res, "No metric", http.StatusNotFound)
+				return
+			}
+		default:
+			http.Error(res, "Wrong metric type", http.StatusBadRequest)
+			return
+		}
+	} else {
+		http.Error(res, "No metric type", http.StatusNotFound)
+		return
+	}
+}
+
+func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request) {
+	splitPath := strings.Split(req.URL.Path, "/")
+
+	metrics, err := api.app.Metric()
+	if err != nil {
+		fmt.Printf("Server: error getting metrics %s\n", err)
+	}
+
+	var memName string
+	var memValue string
+
+	if len(splitPath) > metricValuePosition {
+		// тип метрики
+		memType := splitPath[2]
+		// имя метрики
+		memName = splitPath[3]
+		// значение метрики
+		memValue = splitPath[4]
+
+		switch memType {
+		case gaugeMetricType:
+			if len(splitPath) > metricNamePosition {
+				var err error
+				var metric models.Metric
+
+				metric.ID = memName
+				metric.MType = gaugeMetricType
+				*metric.Value, err = strconv.ParseFloat(memValue, 64)
+				if err != nil {
+					http.Error(res, "Wrong metric value", http.StatusBadRequest)
+					return
+				}
+				metrics[memName] = metric
+			}
+			_, err = res.Write([]byte(fmt.Sprintf("%f", *metrics[memName].Value)))
+			if err != nil {
+				fmt.Printf("Server: error writing request body %s\n", err)
+			}
+		case counterMetricType:
+			var metric models.Metric
+
+			metric.ID = memName
+			metric.MType = gaugeMetricType
+			counterValue, err := strconv.ParseInt(memValue, 10, 64)
+			if err != nil {
+				http.Error(res, "Wrong metric value", http.StatusBadRequest)
+				return
+			}
+			*metric.Delta = counterValue
+
+			_, isSet := metrics[metric.ID]
+			if isSet {
+				var counter int64
+
+				if metrics[metric.ID].Delta == nil {
+					counter = 0
+				} else {
+					counter = *metrics[metric.ID].Delta
+				}
+
+				if metric.Delta != nil {
+					metricCounter := metrics[metric.ID]
+					counter += counterValue
+					metricCounter.Delta = &counter
+					metrics[metric.ID] = metricCounter
+				}
+			} else {
+				metrics[metric.ID] = metric
+			}
+			_, err = res.Write([]byte(fmt.Sprintf("%d", *metrics[memName].Delta)))
+			if err != nil {
+				fmt.Printf("Server: error writing request body %s\n", err)
+			}
+		default:
+			http.Error(res, "Wrong metric type", http.StatusBadRequest)
+			return
+		}
+	} else {
+		http.Error(res, "No metric type or metric value", http.StatusNotFound)
+		return
+	}
+
+	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.WriteHeader(http.StatusOK)
 }
 
 func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
