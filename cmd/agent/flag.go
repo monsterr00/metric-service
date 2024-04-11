@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 	"strconv"
 
@@ -25,8 +25,7 @@ func init() {
 	if isSet {
 		config.ClientOptions.ReportInterval, err = strconv.ParseInt(envRepInterval, 10, 64)
 		if err != nil {
-			fmt.Printf("Wrong parametr type for REPORT_INTERVAL")
-			os.Exit(1)
+			log.Printf("Wrong parametr type for REPORT_INTERVAL")
 		}
 	}
 
@@ -34,8 +33,7 @@ func init() {
 	if isSet {
 		config.ClientOptions.PollInterval, err = strconv.ParseInt(envPollInterval, 10, 64)
 		if err != nil {
-			fmt.Printf("wrong parametr type for POLL_INTERVAL")
-			os.Exit(1)
+			log.Printf("Wrong parametr type for POLL_INTERVAL")
 		}
 	}
 }

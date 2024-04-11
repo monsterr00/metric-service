@@ -1,34 +1,41 @@
 package httplayer
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"net/http"
-	"strconv"
-	"strings"
+
+	"github.com/monsterr00/metric-service.gittest_client/internal/models"
+)
+
+const (
+	gaugeMetricType   = "gauge"
+	counterMetricType = "counter"
 )
 
 func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
 	var body string
+	var err error
 
-	gauge, err := api.app.GetGaugeMetrics()
+	// считывем сохраненные метрики
+	metrics, err := api.app.Metric()
 	if err != nil {
-		fmt.Printf("Client: error getting gauge metrics %s\n", err)
+		http.Error(res, "Server: error getting metrics %s\n", http.StatusNotFound)
+		return
 	}
 
-	for k, v := range gauge {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
+	for k, v := range metrics {
+		switch v.MType {
+		case gaugeMetricType:
+			body += fmt.Sprintf("%s: %v\r\n", k, *v.Value)
+		case counterMetricType:
+			body += fmt.Sprintf("%s: %v\r\n", k, *v.Delta)
+		}
 	}
 
-	counter, err := api.app.GetCounterMetrics()
-	if err != nil {
-		fmt.Printf("Client: error getting counter metrics %s\n", err)
-	}
-	for k, v := range counter {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
-
-	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	res.Header().Set("Content-Type", "text/html")
 	res.WriteHeader(http.StatusOK)
 	_, err = res.Write([]byte(body))
 	if err != nil {
@@ -37,121 +44,117 @@ func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
 }
 
 func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
-	const gaugeMetricType = "gauge"
-	const counterMetricType = "counter"
-	const metricNamePosition = 3
+	var err error
 
-	gauge, err := api.app.GetGaugeMetrics()
+	// читаем тело запроса
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(req.Body)
 	if err != nil {
-		fmt.Printf("Client: error getting gauge metrics %s\n", err)
-	}
-	counter, err := api.app.GetCounterMetrics()
-	if err != nil {
-		fmt.Printf("Client: error getting counter metrics %s\n", err)
-	}
-
-	splitPath := strings.Split(req.URL.Path, "/")
-	if len(splitPath) > metricNamePosition {
-		// тип метрики
-		memType := splitPath[2]
-		// имя метрики
-		memName := splitPath[3]
-
-		switch memType {
-		case gaugeMetricType:
-			memValue, isSet := gauge[memName]
-			if isSet {
-				_, err = res.Write([]byte(strconv.FormatFloat(memValue, 'f', -1, 64)))
-				if err != nil {
-					fmt.Printf("Server: error writing request body %s\n", err)
-				}
-			} else {
-				http.Error(res, "No metric", http.StatusNotFound)
-				return
-			}
-		case counterMetricType:
-			memValue, isSet := counter[memName]
-			if isSet {
-				_, err = res.Write([]byte(fmt.Sprintf("%d", memValue)))
-				if err != nil {
-					fmt.Printf("Server: error writing request body %s\n", err)
-				}
-			} else {
-				http.Error(res, "No metric", http.StatusNotFound)
-				return
-			}
-		default:
-			http.Error(res, "Wrong metric type", http.StatusBadRequest)
-			return
-		}
-	} else {
-		http.Error(res, "No metric type", http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// десериализуем JSON
+	var metric models.Metric
+	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// считывем сохраненные метрики
+	metrics, err := api.app.Metric()
+	if err != nil {
+		fmt.Printf("Server: error getting metrics %s\n", err)
+	}
+
+	var resp []byte
+
+	switch metric.MType {
+	case gaugeMetricType, counterMetricType:
+		_, isSet := metrics[metric.ID]
+		if !isSet {
+			http.Error(res, "No metric", http.StatusNotFound)
+			return
+		}
+	default:
+		http.Error(res, "Wrong metric type", http.StatusBadRequest)
+		return
+	}
+
+	resp, err = json.Marshal(metrics[metric.ID])
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	res.Write(resp)
 }
 
 func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
-	splitPath := strings.Split(req.URL.Path, "/")
+	var err error
 
-	const metricNamePosition = 3
-	const metricValuePosition = 4
-
-	var memName string
-	var memValue string
-
-	gauge, err := api.app.GetGaugeMetrics()
+	// читаем тело запроса
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(req.Body)
 	if err != nil {
-		fmt.Printf("Client: error getting gauge metrics %s\n", err)
-	}
-	counter, err := api.app.GetCounterMetrics()
-	if err != nil {
-		fmt.Printf("Client: error getting counter metrics %s\n", err)
-	}
-
-	if len(splitPath) > metricValuePosition {
-		// тип метрики
-		memType := splitPath[2]
-		// имя метрики
-		memName = splitPath[3]
-		// значение метрики
-		memValue = splitPath[4]
-
-		switch memType {
-		case "gauge":
-			if len(splitPath) > metricNamePosition {
-				var err error
-				gauge[memName], err = strconv.ParseFloat(memValue, 64)
-
-				if err != nil {
-					http.Error(res, "Wrong metric value", http.StatusBadRequest)
-					return
-				}
-			}
-			_, err = res.Write([]byte(fmt.Sprintf("%f", gauge[memName])))
-			if err != nil {
-				fmt.Printf("Server: error writing request body %s\n", err)
-			}
-		case "counter":
-			counterValue, err := strconv.ParseInt(memValue, 10, 64)
-			if err != nil {
-				http.Error(res, "Wrong metric value", http.StatusBadRequest)
-				return
-			}
-
-			counter[memName] += counterValue
-			_, err = res.Write([]byte(fmt.Sprintf("%d", counter[memName])))
-			if err != nil {
-				fmt.Printf("Server: error writing request body %s\n", err)
-			}
-		default:
-			http.Error(res, "Wrong metric type", http.StatusBadRequest)
-			return
-		}
-	} else {
-		http.Error(res, "No metric type or metric value", http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// десериализуем JSON
+	var metric models.Metric
+	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// считывем сохраненные метрики
+	metrics, err := api.app.Metric()
+	if err != nil {
+		fmt.Printf("Server: error getting metrics %s\n", err)
+	}
+
+	var resp []byte
+
+	switch metric.MType {
+	case gaugeMetricType:
+		metrics[metric.ID] = metric
+
+	case counterMetricType:
+		_, isSet := metrics[metric.ID]
+		if isSet {
+			var counter int64
+
+			if metrics[metric.ID].Delta == nil {
+				counter = 0
+			} else {
+				counter = *metrics[metric.ID].Delta
+			}
+
+			if metric.Delta != nil {
+				metricCounter := metrics[metric.ID]
+				counter += *metric.Delta
+				metricCounter.Delta = &counter
+				metrics[metric.ID] = metricCounter
+			}
+		} else {
+			metrics[metric.ID] = metric
+		}
+	default:
+		http.Error(res, "Wrong metric type", http.StatusBadRequest)
+		return
+	}
+
+	resp, err = json.Marshal(metrics[metric.ID])
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	api.saveMetricsSync()
+	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
+	res.Write(resp)
 }
