@@ -1,7 +1,10 @@
 package httplayer
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -41,44 +44,76 @@ func (api *httpAPI) Engage() {
 		api.sendToServer()
 		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
 	}
-
 }
 
 func (api *httpAPI) sendToServer() {
 	var err error
+
 	gauge, err := api.app.GetGaugeMetrics()
 	if err != nil {
-		fmt.Printf("Client: error getting gauge metrics %s\n", err)
+		log.Printf("Client: error getting gauge metrics %s\n", err)
 	}
 
+	requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, "/update/")
+
 	for k, v := range gauge {
-		metricGaugeURL := fmt.Sprintf("/update/gauge/%s/%f", k, v)
-		requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, metricGaugeURL)
+		originalBody := fmt.Sprintf(`{"id":"%s","type":"gauge","value":%f}`, k, v)
+		compressedBody, err := compress(originalBody)
+		if err != nil {
+			log.Printf("Client: compress error: %s\n", err)
+			continue
+		}
 
 		req, err := api.client.R().
-			SetHeader("Content-Type", "text/plain").
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(compressedBody).
 			Post(requestURL)
 		if err != nil {
-			fmt.Printf("Client: error sending http-request: %s\n", err)
+			log.Printf("Client: error sending http-request: %s\n", err)
 		}
-		fmt.Printf("Status code: %d\n", req.StatusCode())
+		log.Printf("Before compress, %d, after compress, %d, status code: %d\n", len(originalBody), len(compressedBody), req.StatusCode())
 	}
 
 	counter, err := api.app.GetCounterMetrics()
 	if err != nil {
-		fmt.Printf("Client: error getting counter metrics %s\n", err)
+		log.Printf("Client: error getting counter metrics %s\n", err)
 	}
 
 	for k, v := range counter {
-		metricCounterURL := fmt.Sprintf("/update/counter/%s/%d", k, v)
-		requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, metricCounterURL)
+		originalBody := fmt.Sprintf(`{"id":"%s","type":"counter","delta":%d}`, k, v)
+		compressedBody, err := compress(originalBody)
+		if err != nil {
+			log.Printf("Client: compress error: %s\n", err)
+			continue
+		}
 
 		req, err := api.client.R().
-			SetHeader("Content-Type", "text/plain").
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(compressedBody).
 			Post(requestURL)
 		if err != nil {
-			fmt.Printf("Client: error sending http-request: %s\n", err)
+			log.Printf("Client: error sending http-request: %s\n", err)
 		}
-		fmt.Printf("Status code: %d\n", req.StatusCode())
+		log.Printf("Before compress, %d, after compress, %d, status code: %d\n", len(originalBody), len(compressedBody), req.StatusCode())
 	}
+}
+
+func compress(body string) (string, error) {
+	var err error
+	var buf bytes.Buffer
+	b := []byte(body)
+
+	gz, _ := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	if _, err = gz.Write(b); err != nil {
+		log.Printf("Client: compress error: %s\n", err)
+		return buf.String(), err
+	}
+	if err = gz.Close(); err != nil {
+		log.Printf("Client: gzip close error: %s\n", err)
+		return buf.String(), err
+	}
+
+	return buf.String(), nil
 }

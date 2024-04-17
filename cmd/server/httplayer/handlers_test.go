@@ -28,7 +28,7 @@ func TestMainPage(t *testing.T) {
 			want: want{
 				code:        200,
 				response:    "",
-				contentType: "text/plain; charset=utf-8",
+				contentType: "text/html",
 			},
 		},
 	}
