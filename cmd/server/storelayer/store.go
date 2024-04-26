@@ -33,7 +33,7 @@ const (
 )
 
 func New() *store {
-	if config.ServerOptions.Host == config.DbMode {
+	if config.ServerOptions.Mode == config.DbMode {
 		ps := fmt.Sprintf(config.ServerOptions.DBaddress)
 
 		db, err := sql.Open("pgx", ps)
@@ -52,10 +52,19 @@ func New() *store {
 		storl.bootstrap(context.Background())
 		return storl
 	}
-	return nil
+
+	storl := &store{
+		conn: nil,
+	}
+
+	return storl
 }
 
 func (storl *store) Ping() error {
+	if storl.conn == nil {
+		return errors.New("db: not started")
+	}
+
 	err := storl.conn.Ping()
 
 	if err != nil {
