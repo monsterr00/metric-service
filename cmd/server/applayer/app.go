@@ -51,7 +51,7 @@ func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Met
 		return metric, nil
 	}
 
-	return metric, errors.New("Serever: no metric")
+	return metric, errors.New("server: no metric")
 }
 
 func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {

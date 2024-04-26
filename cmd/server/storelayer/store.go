@@ -33,23 +33,26 @@ const (
 )
 
 func New() *store {
-	ps := fmt.Sprintf(config.ServerOptions.DBaddress)
+	if config.ServerOptions.Host == config.DbMode {
+		ps := fmt.Sprintf(config.ServerOptions.DBaddress)
 
-	db, err := sql.Open("pgx", ps)
-	if err != nil {
-		log.Fatal(err)
-	}
-	storl := &store{
-		conn: db,
-	}
+		db, err := sql.Open("pgx", ps)
+		if err != nil {
+			log.Fatal(err)
+		}
+		storl := &store{
+			conn: db,
+		}
 
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
+		err = db.Ping()
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	storl.bootstrap(context.Background())
-	return storl
+		storl.bootstrap(context.Background())
+		return storl
+	}
+	return nil
 }
 
 func (storl *store) Ping() error {
