@@ -35,17 +35,19 @@ func New(appLayer applayer.App) *httpAPI {
 	}
 
 	api.setupRoutes()
-	api.loadMetricStart()
+	api.loadMetric()
 	go api.saveMetricsInterval()
 	return api
 }
 
 func (api *httpAPI) setupRoutes() {
 	api.router.Get("/", api.WithLogging(api.GzipMiddleware(api.getMainPage)))
-	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.postMetricNoJSON))
+	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.GzipMiddleware(api.postMetricNoJSON)))
 	api.router.Post("/update/", api.WithLogging(api.GzipMiddleware(api.postMetric)))
-	api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.getMetricNoJSON))
+	api.router.Post("/updates/", api.WithLogging(api.GzipMiddleware(api.postMetrics)))
+	api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.GzipMiddleware(api.getMetricNoJSON)))
 	api.router.Post("/value/", api.WithLogging(api.GzipMiddleware(api.getMetric)))
+	api.router.Get("/ping", api.WithLogging(api.GzipMiddleware(api.pingDB)))
 }
 
 func (api *httpAPI) Engage() {
@@ -53,12 +55,13 @@ func (api *httpAPI) Engage() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	api.saveMetricsExit()
+	api.saveMetrics()
+	api.closeDB()
 }
 
-func (api *httpAPI) saveMetricsExit() {
-	if config.ServerOptions.FileStoragePath != "" {
-		err := api.app.SaveMetrics()
+func (api *httpAPI) saveMetrics() {
+	if config.ServerOptions.Mode == config.FileMode {
+		err := api.app.SaveMetricsFile()
 		if err != nil {
 			log.Printf("Server: metrics file save on exit error, %s", err)
 		}
@@ -66,9 +69,9 @@ func (api *httpAPI) saveMetricsExit() {
 }
 
 func (api *httpAPI) saveMetricsInterval() {
-	if config.ServerOptions.FileStoragePath != "" && config.ServerOptions.StoreInterval > 0 {
+	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.StoreInterval > 0 {
 		for {
-			err := api.app.SaveMetrics()
+			err := api.app.SaveMetricsFile()
 			if err != nil {
 				log.Printf("Server: metrics file save interval error, %s", err)
 			}
@@ -78,19 +81,23 @@ func (api *httpAPI) saveMetricsInterval() {
 }
 
 func (api *httpAPI) saveMetricsSync() {
-	if config.ServerOptions.FileStoragePath != "" && config.ServerOptions.StoreInterval == 0 {
-		err := api.app.SaveMetrics()
+	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.StoreInterval == 0 {
+		err := api.app.SaveMetricsFile()
 		if err != nil {
 			log.Printf("Server: metrics file save sync error, %s", err)
 		}
 	}
 }
 
-func (api *httpAPI) loadMetricStart() {
-	if config.ServerOptions.FileStoragePath != "" && config.ServerOptions.Restore {
-		err := api.app.LoadMetrics()
+func (api *httpAPI) loadMetric() {
+	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.Restore {
+		err := api.app.LoadMetricsFile()
 		if err != nil {
 			log.Printf("Server: metrics file load error, %s", err)
 		}
 	}
+}
+
+func (api *httpAPI) closeDB() {
+	api.app.CloseDB()
 }

@@ -2,7 +2,9 @@ package applayer
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/storelayer"
@@ -16,10 +18,13 @@ type app struct {
 }
 
 type App interface {
-	Metric() (map[string]models.Metric, error)
-	SaveMetrics() error
-	LoadMetrics() error
-	AddMetrics(metric models.Metric)
+	Metrics(cttx context.Context) (map[string]models.Metric, error)
+	Metric(ctx context.Context, id string, mtype string) (models.Metric, error)
+	SaveMetricsFile() error
+	LoadMetricsFile() error
+	AddMetric(ctx context.Context, metric models.Metric) error
+	PingDB() error
+	CloseDB() error
 }
 
 func New(storeLayer storelayer.Store) *app {
@@ -29,22 +34,46 @@ func New(storeLayer storelayer.Store) *app {
 	}
 }
 
-func (api *app) Metric() (map[string]models.Metric, error) {
+func (api *app) Metrics(ctx context.Context) (map[string]models.Metric, error) {
+	if config.ServerOptions.Mode == config.DbMode {
+		return api.fetchMetrics(ctx)
+	}
+
 	return api.metrics, nil
 }
 
-func (api *app) AddMetrics(metric models.Metric) {
-	api.metrics[metric.ID] = metric
+func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Metric, error) {
+	if config.ServerOptions.Mode == config.DbMode {
+		return api.getMetricByID(ctx, id, mtype)
+	}
+	metric, isSet := api.metrics[id]
+	if isSet {
+		return metric, nil
+	}
+
+	return metric, errors.New("Serever: no metric")
 }
 
-func (api *app) SaveMetrics() error {
+func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
+	if config.ServerOptions.Mode == config.DbMode {
+		_, err := api.getMetricByID(ctx, metric.ID, metric.MType)
+		if err == nil {
+			return api.updateMetric(ctx, metric)
+		}
+
+		return api.createMetric(ctx, metric)
+	}
+	api.metrics[metric.ID] = metric
+	return nil
+}
+
+func (api *app) SaveMetricsFile() error {
 	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
 	}
 	writer := bufio.NewWriter(file)
-
-	metrics, err := api.Metric()
+	metrics, err := api.Metrics(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -75,11 +104,10 @@ func (api *app) SaveMetrics() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func (api *app) LoadMetrics() error {
+func (api *app) LoadMetricsFile() error {
 	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_RDONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return err
@@ -98,8 +126,39 @@ func (api *app) LoadMetrics() error {
 			return err
 		}
 
-		api.AddMetrics(metric)
+		api.AddMetric(context.TODO(), metric)
 	}
-
 	return nil
+}
+
+func (api *app) PingDB() error {
+	err := api.store.Ping()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (api *app) CloseDB() error {
+	err := api.store.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (api *app) createMetric(ctx context.Context, metric models.Metric) error {
+	return api.store.Create(ctx, metric)
+}
+
+func (api *app) updateMetric(ctx context.Context, metric models.Metric) error {
+	return api.store.Update(ctx, metric)
+}
+
+func (api *app) getMetricByID(ctx context.Context, id string, mtype string) (models.Metric, error) {
+	return api.store.GetByID(ctx, id, mtype)
+}
+
+func (api *app) fetchMetrics(ctx context.Context) (map[string]models.Metric, error) {
+	return api.store.Fetch(ctx)
 }

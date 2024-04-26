@@ -14,11 +14,12 @@ func init() {
 	flag.Int64Var(&config.ServerOptions.StoreInterval, "i", 300, "server file store interval")
 	flag.StringVar(&config.ServerOptions.FileStoragePath, "f", "/Users/denis/metric-service/tmp/metrics-db.json", "server metric storage path")
 	flag.BoolVar(&config.ServerOptions.Restore, "r", true, "server read metrics on start")
+	flag.StringVar(&config.ServerOptions.DBaddress, "d", "host=localhost user=postgres password=T<<T:0uq dbname=metrics sslmode=disable", "DB address")
 
 	var err error
 
 	envAddress, isSet := os.LookupEnv("ADDRESS")
-	if isSet {
+	if isSet && envAddress != "" {
 		config.ServerOptions.Host = envAddress
 	}
 
@@ -26,7 +27,7 @@ func init() {
 	if isSet {
 		config.ServerOptions.StoreInterval, err = strconv.ParseInt(envInterval, 10, 64)
 		if err != nil {
-			log.Printf("Servr: wrong parametr type for STORE_INTERVAL")
+			log.Printf("Server: wrong parametr type for STORE_INTERVAL")
 		}
 	}
 
@@ -39,7 +40,23 @@ func init() {
 	if isSet {
 		config.ServerOptions.Restore, err = strconv.ParseBool(envRestore)
 		if err != nil {
-			log.Printf("Servr: wrong parametr type for RESTORE")
+			log.Printf("Server: wrong parametr type for RESTORE")
 		}
 	}
+
+	dbAddress, isSet := os.LookupEnv("DATABASE_DSN")
+	if isSet && dbAddress != "" {
+		config.ServerOptions.DBaddress = dbAddress
+	}
+
+	if config.ServerOptions.DBaddress != "" {
+		config.ServerOptions.Mode = config.DbMode
+	} else if config.ServerOptions.FileStoragePath != "" {
+		config.ServerOptions.Mode = config.FileMode
+	} else {
+		config.ServerOptions.Mode = config.MemoryMode
+	}
+
+	config.ServerOptions.ReconnectCount = 3
+	config.ServerOptions.ReconnectDelta = 2
 }

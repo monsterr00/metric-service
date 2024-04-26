@@ -17,7 +17,7 @@ func init() {
 	var err error
 
 	envAddress, isSet := os.LookupEnv("ADDRESS")
-	if isSet {
+	if isSet && envAddress != "" {
 		config.ClientOptions.Host = envAddress
 	}
 
@@ -36,4 +36,6 @@ func init() {
 			log.Printf("Wrong parametr type for POLL_INTERVAL")
 		}
 	}
+
+	config.ClientOptions.BatchSize = 5
 }

@@ -2,6 +2,7 @@ package httplayer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -23,8 +24,10 @@ func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
 	var body string
 	var err error
 
+	ctx := req.Context()
+
 	// считывем сохраненные метрики
-	metrics, err := api.app.Metric()
+	metrics, err := api.app.Metrics(ctx)
 	if err != nil {
 		http.Error(res, "Server: error getting metrics %s\n", http.StatusNotFound)
 		return
@@ -65,18 +68,13 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// считывем сохраненные метрики
-	metrics, err := api.app.Metric()
-	if err != nil {
-		fmt.Printf("Server: error getting metrics %s\n", err)
-	}
-
-	var resp []byte
+	ctx := req.Context()
+	var savedMetric models.Metric
 
 	switch metric.MType {
 	case gaugeMetricType, counterMetricType:
-		_, isSet := metrics[metric.ID]
-		if !isSet {
+		savedMetric, err = api.app.Metric(ctx, metric.ID, metric.MType)
+		if err != nil {
 			http.Error(res, "No metric", http.StatusNotFound)
 			return
 		}
@@ -85,7 +83,7 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp, err = json.Marshal(metrics[metric.ID])
+	resp, err := json.Marshal(savedMetric)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
@@ -100,11 +98,7 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 }
 
 func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) {
-	// считывем сохраненные метрики
-	metrics, err := api.app.Metric()
-	if err != nil {
-		fmt.Printf("Server: error getting metrics %s\n", err)
-	}
+	ctx := req.Context()
 
 	splitPath := strings.Split(req.URL.Path, "/")
 	if len(splitPath) > metricNamePosition {
@@ -115,9 +109,9 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 
 		switch memType {
 		case gaugeMetricType:
-			memValue, isSet := metrics[memName]
-			if isSet {
-				_, err = res.Write([]byte(strconv.FormatFloat(*memValue.Value, 'f', -1, 64)))
+			savedMetric, err := api.app.Metric(ctx, memName, memType)
+			if err == nil {
+				_, err = res.Write([]byte(strconv.FormatFloat(*savedMetric.Value, 'f', -1, 64)))
 				if err != nil {
 					fmt.Printf("Server: error writing request body %s\n", err)
 				}
@@ -126,9 +120,9 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 				return
 			}
 		case counterMetricType:
-			memValue, isSet := metrics[memName]
-			if isSet {
-				_, err = res.Write([]byte(fmt.Sprintf("%d", *memValue.Delta)))
+			savedMetric, err := api.app.Metric(ctx, memName, memType)
+			if err == nil {
+				_, err = res.Write([]byte(fmt.Sprintf("%d", *savedMetric.Delta)))
 				if err != nil {
 					fmt.Printf("Server: error writing request body %s\n", err)
 				}
@@ -148,29 +142,22 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 
 func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request) {
 	splitPath := strings.Split(req.URL.Path, "/")
-
-	metrics, err := api.app.Metric()
-	if err != nil {
-		fmt.Printf("Server: error getting metrics %s\n", err)
-	}
-
-	var memName string
-	var memValue string
+	ctx := req.Context()
 
 	if len(splitPath) > metricValuePosition {
 		// тип метрики
 		memType := splitPath[2]
 		// имя метрики
-		memName = splitPath[3]
+		memName := splitPath[3]
 		// значение метрики
-		memValue = splitPath[4]
+		memValue := splitPath[4]
+
+		var err error
+		var metric models.Metric
 
 		switch memType {
 		case gaugeMetricType:
 			if len(splitPath) > metricNamePosition {
-				var err error
-				var metric models.Metric
-
 				metric.ID = memName
 				metric.MType = gaugeMetricType
 				metricValue, err := strconv.ParseFloat(memValue, 64)
@@ -179,15 +166,17 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 					return
 				}
 				metric.Value = &metricValue
-				metrics[memName] = metric
+				err = api.app.AddMetric(ctx, metric)
+				if err != nil {
+					http.Error(res, "Server: add metric error", http.StatusBadRequest)
+					return
+				}
 			}
-			_, err = res.Write([]byte(fmt.Sprintf("%f", *metrics[memName].Value)))
+			_, err = res.Write([]byte(fmt.Sprintf("%f", *metric.Value)))
 			if err != nil {
 				fmt.Printf("Server: error writing request body %s\n", err)
 			}
 		case counterMetricType:
-			var metric models.Metric
-
 			metric.ID = memName
 			metric.MType = gaugeMetricType
 			counterValue, err := strconv.ParseInt(memValue, 10, 64)
@@ -197,26 +186,28 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 			}
 			metric.Delta = &counterValue
 
-			_, isSet := metrics[metric.ID]
-			if isSet {
+			savedMetric, err := api.app.Metric(ctx, metric.ID, metric.MType)
+			if err == nil {
 				var counter int64
 
-				if metrics[metric.ID].Delta == nil {
+				if savedMetric.Delta == nil {
 					counter = 0
 				} else {
-					counter = *metrics[metric.ID].Delta
+					counter = *savedMetric.Delta
 				}
 
 				if metric.Delta != nil {
-					metricCounter := metrics[metric.ID]
-					counter += counterValue
-					metricCounter.Delta = &counter
-					metrics[metric.ID] = metricCounter
+					counter += *metric.Delta
+					metric.Delta = &counter
 				}
-			} else {
-				metrics[metric.ID] = metric
 			}
-			_, err = res.Write([]byte(fmt.Sprintf("%d", *metrics[memName].Delta)))
+			err = api.app.AddMetric(ctx, metric)
+			if err != nil {
+				http.Error(res, "Server: add metric error", http.StatusBadRequest)
+				return
+			}
+
+			_, err = res.Write([]byte(fmt.Sprintf("%d", *metric.Delta)))
 			if err != nil {
 				fmt.Printf("Server: error writing request body %s\n", err)
 			}
@@ -251,44 +242,87 @@ func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// считывем сохраненные метрики
-	metrics, err := api.app.Metric()
+	ctx := req.Context()
+	api.saveJSONMetric(ctx, res, metric)
+}
+
+func (api *httpAPI) pingDB(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/html")
+
+	err := api.app.PingDB()
 	if err != nil {
-		fmt.Printf("Server: error getting metrics %s\n", err)
+		http.Error(res, "Server: no DB connection", http.StatusInternalServerError)
+		return
 	}
 
-	var resp []byte
+	res.WriteHeader(http.StatusOK)
+}
+
+func (api *httpAPI) postMetrics(res http.ResponseWriter, req *http.Request) {
+	var err error
+
+	// читаем тело запроса
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(req.Body)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// десериализуем JSON
+	var metrics []models.Metric
+	if err = json.Unmarshal(buf.Bytes(), &metrics); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx := req.Context()
+
+	for _, metric := range metrics {
+		api.saveJSONMetric(ctx, res, metric)
+	}
+}
+
+func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter, metric models.Metric) {
+	var err error
 
 	switch metric.MType {
 	case gaugeMetricType:
-		metrics[metric.ID] = metric
+		err = api.app.AddMetric(ctx, metric)
+		if err != nil {
+			http.Error(res, "Server: add metric error", http.StatusBadRequest)
+			return
+		}
 
 	case counterMetricType:
-		_, isSet := metrics[metric.ID]
-		if isSet {
+		savedMetric, err := api.app.Metric(ctx, metric.ID, metric.MType)
+		if err == nil {
 			var counter int64
 
-			if metrics[metric.ID].Delta == nil {
+			// счмиываем значение счетчика метрики
+			if savedMetric.Delta == nil {
 				counter = 0
 			} else {
-				counter = *metrics[metric.ID].Delta
+				counter = *savedMetric.Delta
 			}
 
 			if metric.Delta != nil {
-				metricCounter := metrics[metric.ID]
 				counter += *metric.Delta
-				metricCounter.Delta = &counter
-				metrics[metric.ID] = metricCounter
+				metric.Delta = &counter
 			}
-		} else {
-			metrics[metric.ID] = metric
+		}
+		err = api.app.AddMetric(ctx, metric)
+		if err != nil {
+			http.Error(res, "Server: add metric error", http.StatusBadRequest)
+			return
+
 		}
 	default:
 		http.Error(res, "Wrong metric type", http.StatusBadRequest)
 		return
 	}
 
-	resp, err = json.Marshal(metrics[metric.ID])
+	resp, err := json.Marshal(metric)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
