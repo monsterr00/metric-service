@@ -49,7 +49,7 @@ func New() *store {
 			log.Fatal(err)
 		}
 
-		storl.bootstrap(context.Background())
+		err = storl.bootstrap(context.Background())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -131,8 +131,7 @@ func (storl *store) bootstrap(ctx context.Context) error {
     `)
 		if err != nil {
 			// если ошибка, то откатываем изменения
-			tx.Rollback()
-			return err
+			return errors.Join(err, tx.Rollback())
 		}
 		// коммитим транзакцию
 		return tx.Commit()
@@ -154,8 +153,7 @@ func (storl *store) Create(ctx context.Context, metric models.Metric) error {
     `, metric.ID, metric.MType, metric.Delta, metric.Value)
 	if err != nil {
 		// если ошибка, то откатываем изменения
-		tx.Rollback()
-		return err
+		return errors.Join(err, tx.Rollback())
 	}
 	return tx.Commit()
 }
@@ -174,8 +172,7 @@ func (storl *store) Update(ctx context.Context, metric models.Metric) error {
     `, metric.ID, metric.MType, metric.Delta, metric.Value)
 	if err != nil {
 		// если ошибка, то откатываем изменения
-		tx.Rollback()
-		return err
+		return errors.Join(err, tx.Rollback())
 	}
 	// коммитим транзакцию
 	return tx.Commit()
