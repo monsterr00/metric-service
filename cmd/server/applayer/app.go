@@ -35,7 +35,7 @@ func New(storeLayer storelayer.Store) *app {
 }
 
 func (api *app) Metrics(ctx context.Context) (map[string]models.Metric, error) {
-	if config.ServerOptions.Mode == config.DbMode {
+	if config.ServerOptions.Mode == config.DBMode {
 		return api.fetchMetrics(ctx)
 	}
 
@@ -43,7 +43,7 @@ func (api *app) Metrics(ctx context.Context) (map[string]models.Metric, error) {
 }
 
 func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Metric, error) {
-	if config.ServerOptions.Mode == config.DbMode {
+	if config.ServerOptions.Mode == config.DBMode {
 		return api.getMetricByID(ctx, id, mtype)
 	}
 	metric, isSet := api.metrics[id]
@@ -55,7 +55,7 @@ func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Met
 }
 
 func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
-	if config.ServerOptions.Mode == config.DbMode {
+	if config.ServerOptions.Mode == config.DBMode {
 		_, err := api.getMetricByID(ctx, metric.ID, metric.MType)
 		if err == nil {
 			return api.updateMetric(ctx, metric)

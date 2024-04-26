@@ -33,7 +33,7 @@ const (
 )
 
 func New() *store {
-	if config.ServerOptions.Mode == config.DbMode {
+	if config.ServerOptions.Mode == config.DBMode {
 		ps := fmt.Sprintf(config.ServerOptions.DBaddress)
 
 		db, err := sql.Open("pgx", ps)

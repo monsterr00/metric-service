@@ -50,7 +50,7 @@ func init() {
 	}
 
 	if config.ServerOptions.DBaddress != "" {
-		config.ServerOptions.Mode = config.DbMode
+		config.ServerOptions.Mode = config.DBMode
 	} else if config.ServerOptions.FileStoragePath != "" && config.ServerOptions.Restore {
 		config.ServerOptions.Mode = config.FileMode
 	} else {

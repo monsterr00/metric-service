@@ -19,7 +19,7 @@ var ClientOptions struct {
 }
 
 const (
-	DbMode     = "DB"
+	DBMode     = "DB"
 	FileMode   = "file"
 	MemoryMode = "memory"
 )
