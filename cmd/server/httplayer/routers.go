@@ -99,5 +99,8 @@ func (api *httpAPI) loadMetric() {
 }
 
 func (api *httpAPI) closeDB() {
-	api.app.CloseDB()
+	err := api.app.CloseDB()
+	if err != nil {
+		log.Printf("Server: error closing db, %s", err)
+	}
 }

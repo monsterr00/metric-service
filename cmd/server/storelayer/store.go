@@ -50,6 +50,9 @@ func New() *store {
 		}
 
 		storl.bootstrap(context.Background())
+		if err != nil {
+			log.Fatal(err)
+		}
 		return storl
 	}
 
@@ -117,11 +120,8 @@ func (storl *store) bootstrap(ctx context.Context) error {
 			return err
 		}
 
-		// в случае неуспешного коммита все изменения транзакции будут отменены
-		defer tx.Rollback()
-
 		// создаём таблицу метрик
-		tx.ExecContext(ctx, `
+		_, err = tx.ExecContext(ctx, `
 		CREATE TABLE metrics (
             ID varchar(255),
 			MType varchar(255),
@@ -129,11 +129,14 @@ func (storl *store) bootstrap(ctx context.Context) error {
 			Value double precision,
 		  PRIMARY KEY (ID, MType))
     `)
-
+		if err != nil {
+			// если ошибка, то откатываем изменения
+			tx.Rollback()
+			return err
+		}
 		// коммитим транзакцию
 		return tx.Commit()
 	}
-
 	return nil
 }
 
@@ -142,8 +145,6 @@ func (storl *store) Create(ctx context.Context, metric models.Metric) error {
 	if err != nil {
 		return err
 	}
-
-	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
 	INSERT INTO metrics 
@@ -164,8 +165,6 @@ func (storl *store) Update(ctx context.Context, metric models.Metric) error {
 	if err != nil {
 		return err
 	}
-
-	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
 	UPDATE metrics

@@ -126,7 +126,10 @@ func (api *app) LoadMetricsFile() error {
 			return err
 		}
 
-		api.AddMetric(context.TODO(), metric)
+		err := api.AddMetric(context.TODO(), metric)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
