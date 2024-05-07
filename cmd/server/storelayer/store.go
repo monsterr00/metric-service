@@ -4,13 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	_ "github.com/lib/pq"
+
+	/*"github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	*/
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 	"github.com/monsterr00/metric-service.gittest_client/internal/models"
 )
@@ -29,27 +35,31 @@ type Store interface {
 }
 
 const (
-	metricsTable = "metrics"
+	metricsTable   = "metrics"
+	migrationsPath = "file:///Users/denis/metric-service/db/migrations"
 )
 
 func New() *store {
 	if config.ServerOptions.Mode == config.DBMode {
-		ps := fmt.Sprintf(config.ServerOptions.DBaddress)
-
-		db, err := sql.Open("pgx", ps)
+		db, err := sql.Open("postgres", config.ServerOptions.DBaddress)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		driver, err := postgres.WithInstance(db, &postgres.Config{})
+		m, err := migrate.NewWithDatabaseInstance(
+			migrationsPath,
+			"postgres", driver)
+		m.Up()
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		storl := &store{
 			conn: db,
 		}
 
 		err = db.Ping()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = storl.bootstrap(context.Background())
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -94,49 +104,6 @@ func (storl *store) Ping() error {
 
 func (storl *store) Close() error {
 	return storl.conn.Close()
-}
-
-func (storl *store) bootstrap(ctx context.Context) error {
-	// Проверяем, создана ли таблица
-	row := storl.conn.QueryRowContext(ctx, `
-	SELECT EXISTS (
-	SELECT FROM pg_tables
-	WHERE schemaname = 'public'
-	AND   tablename  = $1
-    )`,
-		metricsTable,
-	)
-
-	var isExists bool
-	err := row.Scan(&isExists)
-	if err != nil {
-		return err
-	}
-
-	if !isExists {
-		// запускаем транзакцию
-		tx, err := storl.conn.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-
-		// создаём таблицу метрик
-		_, err = tx.ExecContext(ctx, `
-		CREATE TABLE metrics (
-            ID varchar(255),
-			MType varchar(255),
-            Delta bigint,
-			Value double precision,
-		  PRIMARY KEY (ID, MType))
-    `)
-		if err != nil {
-			// если ошибка, то откатываем изменения
-			return errors.Join(err, tx.Rollback())
-		}
-		// коммитим транзакцию
-		return tx.Commit()
-	}
-	return nil
 }
 
 func (storl *store) Create(ctx context.Context, metric models.Metric) error {
