@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path"
 	"strconv"
 
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
@@ -12,7 +13,7 @@ import (
 func init() {
 	flag.StringVar(&config.ServerOptions.Host, "a", "localhost:8080", "server host")
 	flag.Int64Var(&config.ServerOptions.StoreInterval, "i", 300, "server file store interval")
-	flag.StringVar(&config.ServerOptions.FileStoragePath, "f", "/Users/denis/metric-service/tmp/metrics-db.json", "server metric storage path")
+	flag.StringVar(&config.ServerOptions.FileStoragePath, "f", "/tmp/metrics-db.json", "server metric storage path")
 	flag.BoolVar(&config.ServerOptions.Restore, "r", true, "server read metrics on start")
 	flag.StringVar(&config.ServerOptions.DBaddress, "d", "", "DB address")
 
@@ -35,6 +36,12 @@ func init() {
 	if isSet {
 		config.ServerOptions.FileStoragePath = envFilePath
 	}
+
+	projectDir, err := os.Getwd()
+	if err != nil {
+		log.Printf("Server: cant get rooted path")
+	}
+	config.ServerOptions.FileStoragePath = path.Join(projectDir, config.ServerOptions.FileStoragePath)
 
 	envRestore, isSet := os.LookupEnv("RESTORE")
 	if isSet {
