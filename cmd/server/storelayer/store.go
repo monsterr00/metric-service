@@ -47,12 +47,21 @@ func New() *store {
 		}
 
 		driver, err := postgres.WithInstance(db, &postgres.Config{})
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		m, err := migrate.NewWithDatabaseInstance(
 			migrationsPath,
 			"postgres", driver)
-		m.Up()
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		if err := m.Up(); err != nil {
+			if err != migrate.ErrNoChange {
+				log.Fatal(err)
+			}
 		}
 
 		storl := &store{
