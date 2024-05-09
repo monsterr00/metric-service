@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"log"
-	"os"
-	"path"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -16,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/lib/pq"
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
+	"github.com/monsterr00/metric-service.gittest_client/internal/helpers"
 	"github.com/monsterr00/metric-service.gittest_client/internal/models"
 )
 
@@ -44,11 +43,7 @@ func New() *store {
 			log.Fatal(err)
 		}
 
-		projectDir, err := os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-		file_path := path.Join(projectDir, migrationsPath)
+		filePath := helpers.AbsolutePath("file:///", migrationsPath)
 
 		driver, err := postgres.WithInstance(db, &postgres.Config{})
 		if err != nil {
@@ -56,7 +51,7 @@ func New() *store {
 		}
 
 		m, err := migrate.NewWithDatabaseInstance(
-			file_path,
+			filePath,
 			"postgres", driver)
 		if err != nil {
 			log.Fatal(err)

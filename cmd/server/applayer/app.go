@@ -108,7 +108,7 @@ func (api *app) SaveMetricsFile() error {
 }
 
 func (api *app) LoadMetricsFile() error {
-	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_RDONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
