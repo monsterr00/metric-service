@@ -3,6 +3,9 @@ package httplayer
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -10,6 +13,7 @@ import (
 
 	"net/http"
 
+	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 	"github.com/monsterr00/metric-service.gittest_client/internal/models"
 )
 
@@ -235,6 +239,15 @@ func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// проверяем подпись
+	sign := req.Header.Get("HashSHA256")
+	if config.ServerOptions.SignMode && sign != "" {
+		if !api.checkSign(buf.Bytes(), sign) {
+			http.Error(res, "Server: wrong sign hash", http.StatusBadRequest)
+			return
+		}
+	}
+
 	// десериализуем JSON
 	var metric models.Metric
 	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
@@ -243,7 +256,7 @@ func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := req.Context()
-	api.saveJSONMetric(ctx, res, metric)
+	api.saveJSONMetric(ctx, res, metric, sign)
 }
 
 func (api *httpAPI) pingDB(res http.ResponseWriter, req *http.Request) {
@@ -269,6 +282,15 @@ func (api *httpAPI) postMetrics(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// проверяем подпись
+	sign := req.Header.Get("HashSHA256")
+	if config.ServerOptions.SignMode && sign != "" {
+		if !api.checkSign(buf.Bytes(), sign) {
+			http.Error(res, "Server: wrong sign hash", http.StatusBadRequest)
+			return
+		}
+	}
+
 	// десериализуем JSON
 	var metrics []models.Metric
 	if err = json.Unmarshal(buf.Bytes(), &metrics); err != nil {
@@ -279,11 +301,11 @@ func (api *httpAPI) postMetrics(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 
 	for _, metric := range metrics {
-		api.saveJSONMetric(ctx, res, metric)
+		api.saveJSONMetric(ctx, res, metric, sign)
 	}
 }
 
-func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter, metric models.Metric) {
+func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter, metric models.Metric, sign string) {
 	var err error
 
 	switch metric.MType {
@@ -330,9 +352,28 @@ func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter,
 
 	api.saveMetricsSync()
 	res.Header().Set("Content-Type", "application/json")
+	res.Header().Set("HashSHA256", sign)
 	res.WriteHeader(http.StatusOK)
 	_, err = res.Write(resp)
 	if err != nil {
 		fmt.Printf("Server: error writing request body %s\n", err)
+	}
+}
+
+func (api *httpAPI) checkSign(body []byte, sign string) bool {
+	h := hmac.New(sha256.New, []byte(config.ServerOptions.Key))
+	h.Write(body)
+	hash := h.Sum(nil)
+
+	decodedSign, err := hex.DecodeString(string(sign))
+	if err != nil {
+		return false
+	}
+
+	if hmac.Equal(hash, decodedSign) {
+		return true
+	} else {
+		fmt.Printf("wrong sign hash, %x, %x, %s", hash, decodedSign, body)
+		return false
 	}
 }

@@ -13,6 +13,7 @@ func init() {
 	flag.StringVar(&config.ClientOptions.Host, "a", "localhost:8080", "server host")
 	flag.Int64Var(&config.ClientOptions.ReportInterval, "r", 2, "reportInterval value")
 	flag.Int64Var(&config.ClientOptions.PollInterval, "p", 10, "pollInterval value")
+	flag.StringVar(&config.ClientOptions.Key, "k", "", "secret key")
 
 	var err error
 
@@ -35,6 +36,15 @@ func init() {
 		if err != nil {
 			log.Printf("Wrong parametr type for POLL_INTERVAL")
 		}
+	}
+
+	secretKey, isSet := os.LookupEnv("KEY")
+	if isSet && secretKey != "" {
+		config.ClientOptions.Key = secretKey
+	}
+
+	if config.ClientOptions.Key != "" {
+		config.ClientOptions.SignMode = true
 	}
 
 	config.ClientOptions.BatchSize = 5

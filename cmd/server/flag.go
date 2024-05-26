@@ -15,6 +15,7 @@ func init() {
 	flag.StringVar(&config.ServerOptions.FileStoragePath, "f", "tmp/metrics-db.json", "server metric storage path")
 	flag.BoolVar(&config.ServerOptions.Restore, "r", true, "server read metrics on start")
 	flag.StringVar(&config.ServerOptions.DBaddress, "d", "", "DB address")
+	flag.StringVar(&config.ServerOptions.Key, "k", "", "secret key")
 
 	var err error
 
@@ -55,6 +56,15 @@ func init() {
 		config.ServerOptions.Mode = config.FileMode
 	} else {
 		config.ServerOptions.Mode = config.MemoryMode
+	}
+
+	secretKey, isSet := os.LookupEnv("KEY")
+	if isSet && secretKey != "" {
+		config.ServerOptions.Key = secretKey
+	}
+
+	if config.ServerOptions.Key != "" {
+		config.ServerOptions.SignMode = true
 	}
 
 	config.ServerOptions.ReconnectCount = 3

@@ -3,6 +3,9 @@ package httplayer
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"time"
@@ -142,10 +145,21 @@ func (api *httpAPI) sendReq(originalBody string, requestURL string) {
 	req, err := api.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
+		SetHeader("HashSHA256", api.signBody(originalBody)).
 		SetBody(compressedBody).
 		Post(requestURL)
 	if err != nil {
 		log.Printf("Client: error sending http-request: %s\n", err)
 	}
-	log.Printf("Before compress, %d, after compress, %d, status code: %d\n", len(originalBody), len(compressedBody), req.StatusCode())
+	log.Printf("Before compress, %d, after compress, %d, status code: %d, originalBody: %s\n", len(originalBody), len(compressedBody), req.StatusCode(), originalBody)
+}
+
+func (api *httpAPI) signBody(body string) string {
+	// подписываем алгоритмом HMAC, используя SHA-256
+	if config.ClientOptions.SignMode {
+		h := hmac.New(sha256.New, []byte(config.ClientOptions.Key))
+		h.Write([]byte(body))
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	return ""
 }
