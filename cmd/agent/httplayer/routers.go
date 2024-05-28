@@ -50,40 +50,13 @@ func (api *httpAPI) setupClient() {
 func (api *httpAPI) Engage() {
 	// запускаем сбор метрик
 	go api.app.SetMetrics()
+	go api.app.SetMetricsGOPSUTIL()
 
 	// подготовка запросов к отправке
 	go api.prepBatch()
-
-	//api.sendToServer()
-
 	// отправка запросов
 	api.workersPool.Run()
 }
-
-/*
-func (api *httpAPI) sendToServer() {
-	metrics, err := api.app.Metrics()
-	if err != nil {
-		log.Printf("Client: error getting gauge metrics %s\n", err)
-	}
-
-	requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, "/update/")
-	var originalBody string
-
-	for _, v := range metrics {
-		switch v.MType {
-		case gaugeMetricType:
-			originalBody = fmt.Sprintf(`{"id":"%s","type":"%s","value":%f}`, v.ID, v.MType, *v.Value)
-		case counterMetricType:
-			originalBody = fmt.Sprintf(`{"id":"%s","type":"%s","delta":%d}`, v.ID, v.MType, *v.Delta)
-		}
-
-		api.sendReq(originalBody, requestURL)
-
-		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
-	}
-}
-*/
 
 func (api *httpAPI) compress(body string) (string, error) {
 	var err error

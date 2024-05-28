@@ -23,7 +23,7 @@ func NewPool() *Pool {
 	}
 }
 
-func (p *Pool) Run() error {
+func (p *Pool) Run() {
 	for i := 0; i < int(config.ClientOptions.PoolWorkers); i++ {
 		p.wg.Add(1)
 		go p.doWork()
@@ -32,10 +32,9 @@ func (p *Pool) Run() error {
 	for {
 		select {
 		case err := <-p.errors:
-			return err
+			log.Printf("Client: error from channel: %s\n", err)
 		default:
 			p.wg.Wait()
-			return nil
 		}
 	}
 }
