@@ -21,14 +21,16 @@ const (
 )
 
 type httpAPI struct {
-	client *resty.Client
-	app    applayer.App
+	client      *resty.Client
+	app         applayer.App
+	workersPool *Pool
 }
 
 func New(appLayer applayer.App) *httpAPI {
 	api := &httpAPI{
-		client: resty.New(),
-		app:    appLayer,
+		client:      resty.New(),
+		app:         appLayer,
+		workersPool: NewPool(),
 	}
 
 	api.setupClient()
@@ -46,15 +48,19 @@ func (api *httpAPI) setupClient() {
 }
 
 func (api *httpAPI) Engage() {
+	// запускаем сбор метрик
 	go api.app.SetMetrics()
 
-	for {
-		api.sendToServer()
-		api.sendToServerBatch()
-		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
-	}
+	// подготовка запросов к отправке
+	go api.prepBatch()
+
+	//api.sendToServer()
+
+	// отправка запросов
+	api.workersPool.Run()
 }
 
+/*
 func (api *httpAPI) sendToServer() {
 	metrics, err := api.app.Metrics()
 	if err != nil {
@@ -73,8 +79,11 @@ func (api *httpAPI) sendToServer() {
 		}
 
 		api.sendReq(originalBody, requestURL)
+
+		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
 	}
 }
+*/
 
 func (api *httpAPI) compress(body string) (string, error) {
 	var err error
@@ -94,64 +103,64 @@ func (api *httpAPI) compress(body string) (string, error) {
 	return buf.String(), nil
 }
 
-func (api *httpAPI) sendToServerBatch() {
-	metrics, err := api.app.Metrics()
-	if err != nil {
-		log.Printf("Client: error getting gauge metrics %s\n", err)
-	}
+func (api *httpAPI) prepBatch() {
+	for {
+		api.app.LockRW()
+		metrics, err := api.app.Metrics()
+		api.app.UnlockRW()
 
-	requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, "/updates/")
-
-	var body = "["
-	var counter int64
-
-	for _, v := range metrics {
-		switch v.MType {
-		case gaugeMetricType:
-			body += fmt.Sprintf(`{"id":"%s","type":"%s","value":%f},`, v.ID, v.MType, *v.Value)
-			counter += 1
-		case counterMetricType:
-			body += fmt.Sprintf(`{"id":"%s","type":"%s","delta":%d},`, v.ID, v.MType, *v.Delta)
-			counter += 1
+		if err != nil {
+			log.Printf("Client: error getting gauge metrics %s\n", err)
 		}
 
-		if counter == config.ClientOptions.BatchSize {
-			// отправляем запрос
-			if len(body) > 1 {
-				originalBody := body[:len(body)-1]
-				originalBody += "]"
-				api.sendReq(originalBody, requestURL)
+		var body = "["
+		var counter int64
 
-				counter = 0
-				body = "["
+		for _, v := range metrics {
+			switch v.MType {
+			case gaugeMetricType:
+				body += fmt.Sprintf(`{"id":"%s","type":"%s","value":%f},`, v.ID, v.MType, *v.Value)
+				counter += 1
+			case counterMetricType:
+				body += fmt.Sprintf(`{"id":"%s","type":"%s","delta":%d},`, v.ID, v.MType, *v.Delta)
+				counter += 1
+			}
+
+			if counter == config.ClientOptions.BatchSize {
+				// отправляем запрос
+				if len(body) > 1 {
+					originalBody := body[:len(body)-1]
+					originalBody += "]"
+					api.sendReqToChan(originalBody)
+					counter = 0
+					body = "["
+				}
 			}
 		}
-	}
 
-	//отправляем остатки
-	if len(body) > 1 {
-		originalBody := body[:len(body)-1]
-		originalBody += "]"
-		api.sendReq(originalBody, requestURL)
+		//отправляем остатки
+		if len(body) > 1 {
+			originalBody := body[:len(body)-1]
+			originalBody += "]"
+			api.sendReqToChan(originalBody)
+		}
+
+		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
 	}
 }
 
-func (api *httpAPI) sendReq(originalBody string, requestURL string) {
+func (api *httpAPI) sendReqToChan(originalBody string) {
 	compressedBody, err := api.compress(originalBody)
 	if err != nil {
 		log.Printf("Client: compress error: %s\n", err)
 	}
-
-	req, err := api.client.R().
+	req := api.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("HashSHA256", api.signBody(originalBody)).
-		SetBody(compressedBody).
-		Post(requestURL)
-	if err != nil {
-		log.Printf("Client: error sending http-request: %s\n", err)
-	}
-	log.Printf("Before compress, %d, after compress, %d, status code: %d, originalBody: %s\n", len(originalBody), len(compressedBody), req.StatusCode(), originalBody)
+		SetBody(compressedBody)
+
+	api.workersPool.Add(req)
 }
 
 func (api *httpAPI) signBody(body string) string {

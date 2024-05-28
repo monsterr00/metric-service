@@ -16,7 +16,9 @@ func init() {
 	flag.BoolVar(&config.ServerOptions.Restore, "r", true, "server read metrics on start")
 	flag.StringVar(&config.ServerOptions.DBaddress, "d", "", "DB address")
 	flag.StringVar(&config.ServerOptions.Key, "k", "", "secret key")
+}
 
+func setFlags() {
 	var err error
 
 	envAddress, isSet := os.LookupEnv("ADDRESS")
@@ -59,7 +61,7 @@ func init() {
 	}
 
 	secretKey, isSet := os.LookupEnv("KEY")
-	if isSet && secretKey != "" {
+	if isSet {
 		config.ServerOptions.Key = secretKey
 	}
 

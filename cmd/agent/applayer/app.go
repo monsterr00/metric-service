@@ -3,6 +3,7 @@ package applayer
 import (
 	"math/rand"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/monsterr00/metric-service.gittest_client/cmd/agent/storelayer"
@@ -13,11 +14,14 @@ import (
 type app struct {
 	metrics map[string]models.Metric
 	store   storelayer.Store
+	m       sync.RWMutex
 }
 
 type App interface {
 	Metrics() (map[string]models.Metric, error)
 	SetMetrics()
+	LockRW()
+	UnlockRW()
 }
 
 func New(storeLayer storelayer.Store) *app {
@@ -31,6 +35,14 @@ func (api *app) Metrics() (map[string]models.Metric, error) {
 	return api.metrics, nil
 }
 
+func (api *app) LockRW() {
+	api.m.RLock()
+}
+
+func (api *app) UnlockRW() {
+	api.m.RUnlock()
+}
+
 func (api *app) SetMetrics() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -41,6 +53,8 @@ func (api *app) SetMetrics() {
 
 		var metric models.Metric
 		var metricValue float64
+
+		api.m.Lock()
 
 		metric.MType = "gauge"
 
@@ -198,6 +212,8 @@ func (api *app) SetMetrics() {
 		counter += 1
 		metric.Delta = &counter
 		api.metrics["PollCount"] = metric
+
+		api.m.Unlock()
 
 		time.Sleep(time.Duration(config.ClientOptions.PollInterval) * time.Second)
 	}

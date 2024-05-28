@@ -20,6 +20,8 @@ var ClientOptions struct {
 	Key            string
 	BatchSize      int64
 	SignMode       bool
+	RateLimit      int64
+	PoolWorkers    int64
 }
 
 const (

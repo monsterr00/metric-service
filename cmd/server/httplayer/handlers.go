@@ -369,11 +369,9 @@ func (api *httpAPI) checkSign(body []byte, sign string) bool {
 	if err != nil {
 		return false
 	}
-
 	if hmac.Equal(hash, decodedSign) {
 		return true
 	} else {
-		fmt.Printf("wrong sign hash, %x, %x, %s", hash, decodedSign, body)
 		return false
 	}
 }
