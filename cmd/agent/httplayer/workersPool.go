@@ -1,6 +1,7 @@
 package httplayer
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -23,18 +24,22 @@ func NewPool() *Pool {
 	}
 }
 
-func (p *Pool) Run() {
+func (p *Pool) Run(ctx context.Context) {
 	for i := 0; i < int(config.ClientOptions.PoolWorkers); i++ {
-		p.wg.Add(1)
 		go p.doWork()
 	}
 
 	for {
 		select {
-		case err := <-p.errors:
+		case <-ctx.Done():
+			log.Printf("Client: channel is closed: Done")
+			return
+		case err, ok := <-p.errors:
+			if !ok {
+				log.Printf("Client: channel is closed")
+				return
+			}
 			log.Printf("Client: error from channel: %s\n", err)
-		default:
-			p.wg.Wait()
 		}
 	}
 }
@@ -50,9 +55,13 @@ func (p *Pool) doWork() {
 			p.errors <- err
 		}
 	}
-	p.wg.Done()
 }
 
 func (p *Pool) Add(r *resty.Request) {
 	p.queue <- r
+}
+
+func (p *Pool) Stop() {
+	close(p.queue)
+	close(p.errors)
 }

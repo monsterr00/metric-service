@@ -3,6 +3,7 @@ package httplayer
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -55,7 +56,11 @@ func (api *httpAPI) Engage() {
 	// подготовка запросов к отправке
 	go api.prepBatch()
 	// отправка запросов
-	api.workersPool.Run()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	api.workersPool.Run(ctx)
+	api.workersPool.Stop()
 }
 
 func (api *httpAPI) compress(body string) (string, error) {
