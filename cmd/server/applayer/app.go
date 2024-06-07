@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"sync"
 
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/storelayer"
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
@@ -63,7 +64,11 @@ func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
 
 		return api.createMetric(ctx, metric)
 	}
+
+	var m sync.RWMutex
+	m.RLock()
 	api.metrics[metric.ID] = metric
+	m.RUnlock()
 	return nil
 }
 
