@@ -10,6 +10,7 @@ import (
 
 func main() {
 	flag.Parse()
+	setFlags()
 
 	// create store layer
 	storeLayer := storelayer.New()

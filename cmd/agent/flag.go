@@ -13,11 +13,15 @@ func init() {
 	flag.StringVar(&config.ClientOptions.Host, "a", "localhost:8080", "server host")
 	flag.Int64Var(&config.ClientOptions.ReportInterval, "r", 2, "reportInterval value")
 	flag.Int64Var(&config.ClientOptions.PollInterval, "p", 10, "pollInterval value")
+	flag.StringVar(&config.ClientOptions.Key, "k", "", "secret key")
+	flag.Int64Var(&config.ClientOptions.RateLimit, "l", 100, "max request pool")
+}
 
+func setFlags() {
 	var err error
 
 	envAddress, isSet := os.LookupEnv("ADDRESS")
-	if isSet {
+	if isSet && envAddress != "" {
 		config.ClientOptions.Host = envAddress
 	}
 
@@ -36,4 +40,24 @@ func init() {
 			log.Printf("Wrong parametr type for POLL_INTERVAL")
 		}
 	}
+
+	secretKey, isSet := os.LookupEnv("KEY")
+	if isSet {
+		config.ClientOptions.Key = secretKey
+	}
+
+	if config.ClientOptions.Key != "" {
+		config.ClientOptions.SignMode = true
+	}
+
+	rateLimit, isSet := os.LookupEnv("RATE_LIMIT")
+	if isSet {
+		config.ClientOptions.RateLimit, err = strconv.ParseInt(rateLimit, 10, 64)
+		if err != nil {
+			log.Printf("Wrong parametr type for RATE_LIMIT")
+		}
+	}
+
+	config.ClientOptions.BatchSize = 5
+	config.ClientOptions.PoolWorkers = 10
 }

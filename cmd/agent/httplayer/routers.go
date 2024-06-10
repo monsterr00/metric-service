@@ -3,6 +3,10 @@ package httplayer
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"time"
@@ -12,15 +16,22 @@ import (
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 )
 
+const (
+	gaugeMetricType   = "gauge"
+	counterMetricType = "counter"
+)
+
 type httpAPI struct {
-	client *resty.Client
-	app    applayer.App
+	client      *resty.Client
+	app         applayer.App
+	workersPool *Pool
 }
 
 func New(appLayer applayer.App) *httpAPI {
 	api := &httpAPI{
-		client: resty.New(),
-		app:    appLayer,
+		client:      resty.New(),
+		app:         appLayer,
+		workersPool: NewPool(),
 	}
 
 	api.setupClient()
@@ -38,69 +49,21 @@ func (api *httpAPI) setupClient() {
 }
 
 func (api *httpAPI) Engage() {
+	// запускаем сбор метрик
 	go api.app.SetMetrics()
+	go api.app.SetMetricsGOPSUTIL()
 
-	for {
-		api.sendToServer()
-		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
-	}
+	// подготовка запросов к отправке
+	go api.prepBatch()
+	// отправка запросов
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	api.workersPool.Run(ctx)
+	api.workersPool.Stop()
 }
 
-func (api *httpAPI) sendToServer() {
-	var err error
-
-	gauge, err := api.app.GetGaugeMetrics()
-	if err != nil {
-		log.Printf("Client: error getting gauge metrics %s\n", err)
-	}
-
-	requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, "/update/")
-
-	for k, v := range gauge {
-		originalBody := fmt.Sprintf(`{"id":"%s","type":"gauge","value":%f}`, k, v)
-		compressedBody, err := compress(originalBody)
-		if err != nil {
-			log.Printf("Client: compress error: %s\n", err)
-			continue
-		}
-
-		req, err := api.client.R().
-			SetHeader("Content-Type", "application/json").
-			SetHeader("Content-Encoding", "gzip").
-			SetBody(compressedBody).
-			Post(requestURL)
-		if err != nil {
-			log.Printf("Client: error sending http-request: %s\n", err)
-		}
-		log.Printf("Before compress, %d, after compress, %d, status code: %d\n", len(originalBody), len(compressedBody), req.StatusCode())
-	}
-
-	counter, err := api.app.GetCounterMetrics()
-	if err != nil {
-		log.Printf("Client: error getting counter metrics %s\n", err)
-	}
-
-	for k, v := range counter {
-		originalBody := fmt.Sprintf(`{"id":"%s","type":"counter","delta":%d}`, k, v)
-		compressedBody, err := compress(originalBody)
-		if err != nil {
-			log.Printf("Client: compress error: %s\n", err)
-			continue
-		}
-
-		req, err := api.client.R().
-			SetHeader("Content-Type", "application/json").
-			SetHeader("Content-Encoding", "gzip").
-			SetBody(compressedBody).
-			Post(requestURL)
-		if err != nil {
-			log.Printf("Client: error sending http-request: %s\n", err)
-		}
-		log.Printf("Before compress, %d, after compress, %d, status code: %d\n", len(originalBody), len(compressedBody), req.StatusCode())
-	}
-}
-
-func compress(body string) (string, error) {
+func (api *httpAPI) compress(body string) (string, error) {
 	var err error
 	var buf bytes.Buffer
 	b := []byte(body)
@@ -116,4 +79,74 @@ func compress(body string) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func (api *httpAPI) prepBatch() {
+	for {
+		api.app.LockRW()
+		metrics, err := api.app.Metrics()
+		api.app.UnlockRW()
+
+		if err != nil {
+			log.Printf("Client: error getting gauge metrics %s\n", err)
+		}
+
+		var body = "["
+		var counter int64
+
+		for _, v := range metrics {
+			switch v.MType {
+			case gaugeMetricType:
+				body += fmt.Sprintf(`{"id":"%s","type":"%s","value":%f},`, v.ID, v.MType, *v.Value)
+				counter += 1
+			case counterMetricType:
+				body += fmt.Sprintf(`{"id":"%s","type":"%s","delta":%d},`, v.ID, v.MType, *v.Delta)
+				counter += 1
+			}
+
+			if counter == config.ClientOptions.BatchSize {
+				// отправляем запрос
+				if len(body) > 1 {
+					originalBody := body[:len(body)-1]
+					originalBody += "]"
+					api.sendReqToChan(originalBody)
+					counter = 0
+					body = "["
+				}
+			}
+		}
+
+		//отправляем остатки
+		if len(body) > 1 {
+			originalBody := body[:len(body)-1]
+			originalBody += "]"
+			api.sendReqToChan(originalBody)
+		}
+
+		time.Sleep(time.Duration(config.ClientOptions.ReportInterval) * time.Second)
+	}
+}
+
+func (api *httpAPI) sendReqToChan(originalBody string) {
+	compressedBody, err := api.compress(originalBody)
+	if err != nil {
+		log.Printf("Client: compress error: %s\n", err)
+	}
+	req := api.client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("HashSHA256", api.signBody(originalBody)).
+		SetBody(compressedBody)
+
+	api.workersPool.Add(req)
+}
+
+func (api *httpAPI) signBody(body string) string {
+	// подписываем алгоритмом HMAC, используя SHA-256
+	if config.ClientOptions.SignMode {
+		h := hmac.New(sha256.New, []byte(config.ClientOptions.Key))
+		h.Write([]byte(body))
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	return ""
 }
