@@ -27,7 +27,6 @@ type Store interface {
 	Close() error
 	Create(ctx context.Context, metric models.Metric) error
 	Update(ctx context.Context, metric models.Metric) error
-	GetByID(ctx context.Context, id string, mtype string) (models.Metric, error)
 	Fetch(ctx context.Context) (map[string]models.Metric, error)
 }
 
@@ -151,29 +150,6 @@ func (storl *store) Update(ctx context.Context, metric models.Metric) error {
 	}
 	// коммитим транзакцию
 	return tx.Commit()
-}
-
-func (storl *store) GetByID(ctx context.Context, id string, mtype string) (models.Metric, error) {
-	row := storl.conn.QueryRowContext(ctx, `	
-	SELECT 
-		ID,
-		MType,
-		Delta,
-		Value
-	FROM metrics
-	WHERE id = $1
-	AND   mtype  = $2
-    `,
-		id, mtype,
-	)
-
-	var metric models.Metric
-	err := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
-	if err != nil {
-		return metric, err
-	}
-
-	return metric, nil
 }
 
 func (storl *store) Fetch(ctx context.Context) (map[string]models.Metric, error) {

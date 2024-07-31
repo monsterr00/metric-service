@@ -103,6 +103,7 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 
 func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
+	res.Header().Set("Content-Type", "text/plain")
 
 	splitPath := strings.Split(req.URL.Path, "/")
 	if len(splitPath) > metricNamePosition {
@@ -115,6 +116,7 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 		case gaugeMetricType:
 			savedMetric, err := api.app.Metric(ctx, memName, memType)
 			if err == nil {
+				res.WriteHeader(http.StatusOK)
 				_, err = res.Write([]byte(strconv.FormatFloat(*savedMetric.Value, 'f', -1, 64)))
 				if err != nil {
 					fmt.Printf("Server: error writing request body %s\n", err)
@@ -126,6 +128,7 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 		case counterMetricType:
 			savedMetric, err := api.app.Metric(ctx, memName, memType)
 			if err == nil {
+				res.WriteHeader(http.StatusOK)
 				_, err = res.Write([]byte(fmt.Sprintf("%d", *savedMetric.Delta)))
 				if err != nil {
 					fmt.Printf("Server: error writing request body %s\n", err)
@@ -147,6 +150,7 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request) {
 	splitPath := strings.Split(req.URL.Path, "/")
 	ctx := req.Context()
+	res.Header().Set("Content-Type", "text/plain")
 
 	if len(splitPath) > metricValuePosition {
 		// тип метрики
@@ -224,13 +228,11 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	res.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	res.WriteHeader(http.StatusOK)
 }
 
 func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 	var err error
-
 	// читаем тело запроса
 	var buf bytes.Buffer
 	_, err = buf.ReadFrom(req.Body)
@@ -254,7 +256,6 @@ func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	ctx := req.Context()
 	api.saveJSONMetric(ctx, res, metric, sign)
 }

@@ -6,11 +6,12 @@ import (
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/applayer"
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/httplayer"
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/storelayer"
+	"github.com/monsterr00/metric-service.gittest_client/internal/util"
 )
 
 func main() {
 	flag.Parse()
-	setFlags()
+	util.SetFlags()
 
 	// create store layer
 	storeLayer := storelayer.New()

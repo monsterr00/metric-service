@@ -40,22 +40,16 @@ func New(appLayer applayer.App) *httpAPI {
 
 func (api *httpAPI) setupClient() {
 	api.client.
-		// устанавливаем количество повторений
 		SetRetryCount(3).
-		// длительность ожидания между попытками
 		SetRetryWaitTime(30 * time.Second).
-		// длительность максимального ожидания
 		SetRetryMaxWaitTime(90 * time.Second)
 }
 
 func (api *httpAPI) Engage() {
-	// запускаем сбор метрик
 	go api.app.SetMetrics()
 	go api.app.SetMetricsGOPSUTIL()
 
-	// подготовка запросов к отправке
 	go api.prepBatch()
-	// отправка запросов
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -105,7 +99,6 @@ func (api *httpAPI) prepBatch() {
 			}
 
 			if counter == config.ClientOptions.BatchSize {
-				// отправляем запрос
 				if len(body) > 1 {
 					originalBody := body[:len(body)-1]
 					originalBody += "]"

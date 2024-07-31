@@ -26,6 +26,7 @@ func NewPool() *Pool {
 
 func (p *Pool) Run(ctx context.Context) {
 	for i := 0; i < int(config.ClientOptions.PoolWorkers); i++ {
+		p.wg.Add(1)
 		go p.doWork()
 	}
 
@@ -42,9 +43,12 @@ func (p *Pool) Run(ctx context.Context) {
 			log.Printf("Client: error from channel: %s\n", err)
 		}
 	}
+
+	p.wg.Wait()
 }
 
 func (p *Pool) doWork() {
+	defer p.wg.Done()
 	for r := range p.queue {
 		requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, "/updates/")
 		req, err := r.Post(requestURL)

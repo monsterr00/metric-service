@@ -3,6 +3,7 @@ package httplayer
 import (
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -35,7 +36,7 @@ func New(appLayer applayer.App) *httpAPI {
 	}
 
 	api.setupRoutes()
-	api.loadMetric()
+	api.loadMetrics()
 	go api.saveMetricsInterval()
 	return api
 }
@@ -48,6 +49,13 @@ func (api *httpAPI) setupRoutes() {
 	api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.GzipMiddleware(api.getMetricNoJSON)))
 	api.router.Post("/value/", api.WithLogging(api.GzipMiddleware(api.getMetric)))
 	api.router.Get("/ping", api.WithLogging(api.GzipMiddleware(api.pingDB)))
+
+	api.router.Get("/debug/pprof/", pprof.Index)
+	api.router.Get("/debug/pprof/heap", pprof.Index)
+	api.router.Get("/debug/pprof/cmdline", pprof.Cmdline)
+	api.router.Get("/debug/pprof/profile", pprof.Profile)
+	api.router.Get("/debug/pprof/symbol", pprof.Symbol)
+	api.router.Get("/debug/pprof/trace", pprof.Trace)
 }
 
 func (api *httpAPI) Engage() {
@@ -89,9 +97,16 @@ func (api *httpAPI) saveMetricsSync() {
 	}
 }
 
-func (api *httpAPI) loadMetric() {
+func (api *httpAPI) loadMetrics() {
 	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.Restore {
 		err := api.app.LoadMetricsFile()
+		if err != nil {
+			log.Printf("Server: metrics file load error, %s", err)
+		}
+	}
+
+	if config.ServerOptions.Mode == config.DBMode {
+		err := api.app.LoadMetricsDB()
 		if err != nil {
 			log.Printf("Server: metrics file load error, %s", err)
 		}

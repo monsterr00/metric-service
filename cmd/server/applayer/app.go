@@ -23,6 +23,7 @@ type App interface {
 	Metric(ctx context.Context, id string, mtype string) (models.Metric, error)
 	SaveMetricsFile() error
 	LoadMetricsFile() error
+	LoadMetricsDB() error
 	AddMetric(ctx context.Context, metric models.Metric) error
 	PingDB() error
 	CloseDB() error
@@ -36,17 +37,10 @@ func New(storeLayer storelayer.Store) *app {
 }
 
 func (api *app) Metrics(ctx context.Context) (map[string]models.Metric, error) {
-	if config.ServerOptions.Mode == config.DBMode {
-		return api.fetchMetrics(ctx)
-	}
-
 	return api.metrics, nil
 }
 
 func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Metric, error) {
-	if config.ServerOptions.Mode == config.DBMode {
-		return api.getMetricByID(ctx, id, mtype)
-	}
 	metric, isSet := api.metrics[id]
 	if isSet {
 		return metric, nil
@@ -56,13 +50,20 @@ func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Met
 }
 
 func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
-	if config.ServerOptions.Mode == config.DBMode {
-		_, err := api.getMetricByID(ctx, metric.ID, metric.MType)
-		if err == nil {
-			return api.updateMetric(ctx, metric)
-		}
+	var err error
 
-		return api.createMetric(ctx, metric)
+	if config.ServerOptions.Mode == config.DBMode {
+		_, isSet := api.metrics[metric.ID]
+
+		if isSet {
+			err = api.updateMetric(ctx, metric)
+		} else {
+			err = api.createMetric(ctx, metric)
+		}
+	}
+
+	if err != nil {
+		return err
 	}
 
 	var m sync.RWMutex
@@ -139,6 +140,17 @@ func (api *app) LoadMetricsFile() error {
 	return nil
 }
 
+func (api *app) LoadMetricsDB() error {
+	var err error
+	ctx := context.Background()
+
+	api.metrics, err = api.fetchMetrics(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (api *app) PingDB() error {
 	err := api.store.Ping()
 	if err != nil {
@@ -161,10 +173,6 @@ func (api *app) createMetric(ctx context.Context, metric models.Metric) error {
 
 func (api *app) updateMetric(ctx context.Context, metric models.Metric) error {
 	return api.store.Update(ctx, metric)
-}
-
-func (api *app) getMetricByID(ctx context.Context, id string, mtype string) (models.Metric, error) {
-	return api.store.GetByID(ctx, id, mtype)
 }
 
 func (api *app) fetchMetrics(ctx context.Context) (map[string]models.Metric, error) {

@@ -29,3 +29,7 @@ const (
 	FileMode   = "file"
 	MemoryMode = "memory"
 )
+
+func SetMode(mode string) {
+	ServerOptions.Mode = mode
+}
