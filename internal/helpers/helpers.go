@@ -15,7 +15,7 @@ func AbsolutePath(pathStart string, pathEnd string) string {
 	}
 	p := path.Base(cwd)
 
-	if p == "metric-service" { //проверяем, запущено из корня бинарником тестов или нет
+	if p == "metric-service" || p == "metric-service.gittest_client" { //проверяем, запущено из корня бинарником тестов или нет
 		return path.Join(pathStart, cwd, pathEnd)
 	} else if p == "httplayer" || p == "appplayer" || p == "storelayer" {
 		absPath, _ := url.JoinPath(pathStart, cwd, "../../..", pathEnd)
