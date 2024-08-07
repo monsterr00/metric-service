@@ -1,5 +1,12 @@
 package config
 
+const (
+	DBMode     = "DB"
+	FileMode   = "file"
+	MemoryMode = "memory"
+)
+
+// ServerOptions содержит настройки серверной части приложения.
 var ServerOptions struct {
 	Host            string
 	StoreInterval   int64
@@ -13,6 +20,7 @@ var ServerOptions struct {
 	SignMode        bool
 }
 
+// ClientOptions содержит настройки серверной части приложения.
 var ClientOptions struct {
 	Host           string
 	ReportInterval int64
@@ -24,12 +32,7 @@ var ClientOptions struct {
 	PoolWorkers    int64
 }
 
-const (
-	DBMode     = "DB"
-	FileMode   = "file"
-	MemoryMode = "memory"
-)
-
+// SetMode устанавливает режим работы приложения, используется в тестировании.
 func SetMode(mode string) {
 	ServerOptions.Mode = mode
 }

@@ -24,6 +24,7 @@ func NewPool() *Pool {
 	}
 }
 
+// Run запускает фабрику.
 func (p *Pool) Run(ctx context.Context) {
 	for i := 0; i < int(config.ClientOptions.PoolWorkers); i++ {
 		p.wg.Add(1)
@@ -47,6 +48,7 @@ func (p *Pool) Run(ctx context.Context) {
 	p.wg.Wait()
 }
 
+// doWork отправвляет запросы из очереди на сервер.
 func (p *Pool) doWork() {
 	defer p.wg.Done()
 	for r := range p.queue {
@@ -61,10 +63,12 @@ func (p *Pool) doWork() {
 	}
 }
 
+// Add добавляет post-запрос в очередь.
 func (p *Pool) Add(r *resty.Request) {
 	p.queue <- r
 }
 
+// Stop останавливает работу фабрики.
 func (p *Pool) Stop() {
 	close(p.queue)
 	close(p.errors)

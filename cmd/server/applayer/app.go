@@ -29,6 +29,7 @@ type App interface {
 	CloseDB() error
 }
 
+// New инициализирует уровень app.
 func New(storeLayer storelayer.Store) *app {
 	return &app{
 		metrics: make(map[string]models.Metric),
@@ -36,10 +37,12 @@ func New(storeLayer storelayer.Store) *app {
 	}
 }
 
+// Metrics возвращает сохраненные метрики.
 func (api *app) Metrics(ctx context.Context) (map[string]models.Metric, error) {
 	return api.metrics, nil
 }
 
+// Metric возвращает сохраненную метрику.
 func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Metric, error) {
 	metric, isSet := api.metrics[id]
 	if isSet {
@@ -49,6 +52,7 @@ func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Met
 	return metric, errors.New("server: no metric")
 }
 
+// AddMetric сохраняет метрику.
 func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
 	var err error
 
@@ -73,6 +77,7 @@ func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
 	return nil
 }
 
+// SaveMetricsFile записывает в файл сохраненные метрики.
 func (api *app) SaveMetricsFile() error {
 	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -113,6 +118,7 @@ func (api *app) SaveMetricsFile() error {
 	return nil
 }
 
+// LoadMetricsFile загружает в мапу метрики, сохраненные в файле.
 func (api *app) LoadMetricsFile() error {
 	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -140,6 +146,7 @@ func (api *app) LoadMetricsFile() error {
 	return nil
 }
 
+// LoadMetricsDB загружает в мапу метрики, сохраненные в БД.
 func (api *app) LoadMetricsDB() error {
 	var err error
 	ctx := context.Background()
@@ -151,6 +158,7 @@ func (api *app) LoadMetricsDB() error {
 	return nil
 }
 
+// PingDB возвращает состояние БД
 func (api *app) PingDB() error {
 	err := api.store.Ping()
 	if err != nil {
@@ -159,6 +167,7 @@ func (api *app) PingDB() error {
 	return nil
 }
 
+// CloseDB закрывает соединения к БД.
 func (api *app) CloseDB() error {
 	err := api.store.Close()
 	if err != nil {
@@ -167,14 +176,17 @@ func (api *app) CloseDB() error {
 	return nil
 }
 
+// createMetric создает новую запись с метрикой в БД.
 func (api *app) createMetric(ctx context.Context, metric models.Metric) error {
 	return api.store.Create(ctx, metric)
 }
 
+// updateMetric обновляет данные о метрике в БД.
 func (api *app) updateMetric(ctx context.Context, metric models.Metric) error {
 	return api.store.Update(ctx, metric)
 }
 
+// fetchMetrics возвращает все метрики из БД.
 func (api *app) fetchMetrics(ctx context.Context) (map[string]models.Metric, error) {
 	return api.store.Fetch(ctx)
 }

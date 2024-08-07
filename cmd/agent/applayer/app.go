@@ -34,18 +34,22 @@ func New(storeLayer storelayer.Store) *app {
 	}
 }
 
+// Metrics возвращает набор метрик из мапы metrics.
 func (api *app) Metrics() (map[string]models.Metric, error) {
 	return api.metrics, nil
 }
 
+// LockRW устанавливает блокировки для горутины.
 func (api *app) LockRW() {
 	api.m.RLock()
 }
 
+// UnlockRW снимает блокировки для горутины.
 func (api *app) UnlockRW() {
 	api.m.RUnlock()
 }
 
+// GenMetricsStats формирует набор метрик с помощью пакета runtime.MemStats.
 func (api *app) GenMetricsStats() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -278,12 +282,14 @@ func (api *app) GenMetricsStats() {
 	time.Sleep(time.Duration(config.ClientOptions.PollInterval) * time.Second)
 }
 
+// SetMetrics запускает процесс формирования метрик,
 func (api *app) SetMetrics() {
 	for {
 		api.GenMetricsStats()
 	}
 }
 
+// SetMetricsGOPSUTIL формирует набор метрик с помощью пакета runtime.MemStats.
 func (api *app) SetMetricsGOPSUTIL() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)

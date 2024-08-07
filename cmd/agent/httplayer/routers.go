@@ -27,6 +27,7 @@ type httpAPI struct {
 	workersPool *Pool
 }
 
+// New инициализирует уровень app
 func New(appLayer applayer.App) *httpAPI {
 	api := &httpAPI{
 		client:      resty.New(),
@@ -38,6 +39,7 @@ func New(appLayer applayer.App) *httpAPI {
 	return api
 }
 
+// setupClient устанавливает настройки http-клиента.
 func (api *httpAPI) setupClient() {
 	api.client.
 		SetRetryCount(3).
@@ -45,6 +47,7 @@ func (api *httpAPI) setupClient() {
 		SetRetryMaxWaitTime(90 * time.Second)
 }
 
+// Engage запускает сбор метрик и другие службы приложения.
 func (api *httpAPI) Engage() {
 	go api.app.SetMetrics()
 	go api.app.SetMetricsGOPSUTIL()
@@ -57,6 +60,7 @@ func (api *httpAPI) Engage() {
 	api.workersPool.Stop()
 }
 
+// compress сжимает тело запроса.
 func (api *httpAPI) compress(body string) (string, error) {
 	var err error
 	var buf bytes.Buffer
@@ -75,6 +79,7 @@ func (api *httpAPI) compress(body string) (string, error) {
 	return buf.String(), nil
 }
 
+// prepBatch разбивает массив отправляемых данных по метрикам на пакеты.
 func (api *httpAPI) prepBatch() {
 	for {
 		api.app.LockRW()
@@ -120,6 +125,7 @@ func (api *httpAPI) prepBatch() {
 	}
 }
 
+// sendReqToChan подготовалливает post-запрос и отправляет его в фабрику.
 func (api *httpAPI) sendReqToChan(originalBody string) {
 	compressedBody, err := api.compress(originalBody)
 	if err != nil {
@@ -134,8 +140,8 @@ func (api *httpAPI) sendReqToChan(originalBody string) {
 	api.workersPool.Add(req)
 }
 
+// signBody подписывает тело запроса алгоритмом HMAC, используя SHA-256.
 func (api *httpAPI) signBody(body string) string {
-	// подписываем алгоритмом HMAC, используя SHA-256
 	if config.ClientOptions.SignMode {
 		h := hmac.New(sha256.New, []byte(config.ClientOptions.Key))
 		h.Write([]byte(body))

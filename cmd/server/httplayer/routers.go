@@ -18,6 +18,7 @@ type httpAPI struct {
 	sugarLogger *zap.SugaredLogger
 }
 
+// New инициализирует http-сервер и другие службы приложения.
 func New(appLayer applayer.App) *httpAPI {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
@@ -41,6 +42,7 @@ func New(appLayer applayer.App) *httpAPI {
 	return api
 }
 
+// setupRoutes формирует связь путей и хэндлеров.
 func (api *httpAPI) setupRoutes() {
 	api.router.Get("/", api.WithLogging(api.GzipMiddleware(api.getMainPage)))
 	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.GzipMiddleware(api.postMetricNoJSON)))
@@ -58,6 +60,7 @@ func (api *httpAPI) setupRoutes() {
 	api.router.Get("/debug/pprof/trace", pprof.Trace)
 }
 
+// Engage запускает http-сервер и другие службы приложения.
 func (api *httpAPI) Engage() {
 	err := http.ListenAndServe(config.ServerOptions.Host, api.router)
 	if err != nil {
@@ -67,6 +70,7 @@ func (api *httpAPI) Engage() {
 	api.closeDB()
 }
 
+// saveMetrics сохраняет данные из мапы metrics в файл.
 func (api *httpAPI) saveMetrics() {
 	if config.ServerOptions.Mode == config.FileMode {
 		err := api.app.SaveMetricsFile()
@@ -76,6 +80,7 @@ func (api *httpAPI) saveMetrics() {
 	}
 }
 
+// saveMetricsInterval сохраняет данные из мапы metrics в файл с определенным интервалом сохранения.
 func (api *httpAPI) saveMetricsInterval() {
 	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.StoreInterval > 0 {
 		for {
@@ -88,6 +93,7 @@ func (api *httpAPI) saveMetricsInterval() {
 	}
 }
 
+// saveMetricsSync сохраняет данные из мапы metrics в файл в момент вызова функции, если не определен интервал сохранения.
 func (api *httpAPI) saveMetricsSync() {
 	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.StoreInterval == 0 {
 		err := api.app.SaveMetricsFile()
@@ -97,6 +103,7 @@ func (api *httpAPI) saveMetricsSync() {
 	}
 }
 
+// loadMetrics загружает данные из БД или файла в мапу metrics.
 func (api *httpAPI) loadMetrics() {
 	if config.ServerOptions.Mode == config.FileMode && config.ServerOptions.Restore {
 		err := api.app.LoadMetricsFile()
@@ -113,6 +120,7 @@ func (api *httpAPI) loadMetrics() {
 	}
 }
 
+// closeDB вызывает функцию закрытия БД.
 func (api *httpAPI) closeDB() {
 	err := api.app.CloseDB()
 	if err != nil {

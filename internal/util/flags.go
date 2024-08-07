@@ -18,6 +18,7 @@ func init() {
 	flag.StringVar(&config.ServerOptions.Key, "k", "", "secret key")
 }
 
+// SetFlags инициализирует настройки программы.
 func SetFlags() {
 	var err error
 

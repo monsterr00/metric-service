@@ -35,6 +35,7 @@ const (
 	migrationsPath = "db/migrations"
 )
 
+// New инициализирует соединение с БД и соотвествующие настройки.
 func New() *store {
 	if config.ServerOptions.Mode == config.DBMode {
 		db, err := sql.Open("postgres", config.ServerOptions.DBaddress)
@@ -80,6 +81,7 @@ func New() *store {
 	return storl
 }
 
+// Ping возвращает статус соединения с БД.
 func (storl *store) Ping() error {
 	if storl.conn == nil {
 		return errors.New("db: not started")
@@ -109,10 +111,12 @@ func (storl *store) Ping() error {
 	return nil
 }
 
+// Close закрывает соединение с БД.
 func (storl *store) Close() error {
 	return storl.conn.Close()
 }
 
+// Create создает новую запись в таблице БД metrics.
 func (storl *store) Create(ctx context.Context, metric models.Metric) error {
 	tx, err := storl.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -132,6 +136,7 @@ func (storl *store) Create(ctx context.Context, metric models.Metric) error {
 	return tx.Commit()
 }
 
+// Update обновляет запись в таблице БД metrics.
 func (storl *store) Update(ctx context.Context, metric models.Metric) error {
 	tx, err := storl.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -152,6 +157,7 @@ func (storl *store) Update(ctx context.Context, metric models.Metric) error {
 	return tx.Commit()
 }
 
+// Fetch возвращает полный набор данных из таблицы БД metrics.
 func (storl *store) Fetch(ctx context.Context) (map[string]models.Metric, error) {
 	rows, err := storl.conn.QueryContext(ctx, `
 	SELECT

@@ -24,6 +24,7 @@ const (
 	metricValuePosition = 4
 )
 
+// getMainPage выводит сохраненные метрики, является хэндером для get-запроса "/".
 func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
 	var body string
 	var err error
@@ -54,6 +55,7 @@ func (api *httpAPI) getMainPage(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// getMetric возвращает в виде json информацию по запрашиваемой в виде json метрике, является хэндером для post-запроса "/value/".
 func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 	var err error
 
@@ -101,6 +103,7 @@ func (api *httpAPI) getMetric(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// getMetricNoJSON возвращает информацию по запрашиваемой в виде URL метрике, является хэндером для get-запроса "/value/{metricType}/{metricName}".
 func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	res.Header().Set("Content-Type", "text/plain")
@@ -147,6 +150,7 @@ func (api *httpAPI) getMetricNoJSON(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
+// postMetricNoJSON сохраняет метрику, переданную через URL, является хэндером для post-запроса "/update/{metricType}/{metricName}/{metricValue}".
 func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request) {
 	splitPath := strings.Split(req.URL.Path, "/")
 	ctx := req.Context()
@@ -231,6 +235,7 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 	res.WriteHeader(http.StatusOK)
 }
 
+// postMetric сохраняет метрику, переданную через json, является хэндером для post-запроса "/update/".
 func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 	var err error
 	// читаем тело запроса
@@ -260,6 +265,7 @@ func (api *httpAPI) postMetric(res http.ResponseWriter, req *http.Request) {
 	api.saveJSONMetric(ctx, res, metric, sign)
 }
 
+// pingDB проверяет состояние БД, является хэндером для get-запроса "/ping".
 func (api *httpAPI) pingDB(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
 
@@ -272,6 +278,7 @@ func (api *httpAPI) pingDB(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
+// postMetrics сохраняет метрики, переданные через json, является хэндером для post-запроса "/updates/".
 func (api *httpAPI) postMetrics(res http.ResponseWriter, req *http.Request) {
 	var err error
 
@@ -306,6 +313,7 @@ func (api *httpAPI) postMetrics(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// saveJSONMetric сохраняет метрику, которая передана в post-запросе.
 func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter, metric models.Metric, sign string) {
 	var err error
 
@@ -361,6 +369,7 @@ func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter,
 	}
 }
 
+// checkSign проверяет подпись из заголовка по методу sha256.
 func (api *httpAPI) checkSign(body []byte, sign string) bool {
 	h := hmac.New(sha256.New, []byte(config.ServerOptions.Key))
 	h.Write(body)
