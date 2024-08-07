@@ -31,6 +31,8 @@ func (p *Pool) Run(ctx context.Context) {
 		go p.doWork()
 	}
 
+	p.wg.Wait()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -44,8 +46,6 @@ func (p *Pool) Run(ctx context.Context) {
 			log.Printf("Client: error from channel: %s\n", err)
 		}
 	}
-
-	p.wg.Wait()
 }
 
 // doWork отправвляет запросы из очереди на сервер.
