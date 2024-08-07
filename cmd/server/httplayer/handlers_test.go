@@ -170,6 +170,7 @@ func TestGetMetric(t *testing.T) {
 			if res.StatusCode != http.StatusOK {
 				t.Error("error in post request")
 			}
+			res.Body.Close()
 
 			metric := test.metrics[test.metricID]
 			body := fmt.Sprintf(`{"id":"%s","type":"%s"}`, metric.ID, metric.MType)
@@ -292,6 +293,7 @@ func TestGetMetricNoJSON(t *testing.T) {
 			if res.StatusCode != http.StatusOK {
 				t.Error("error in post request")
 			}
+			res.Body.Close()
 
 			r = httptest.NewRequest(http.MethodGet, test.request, nil)
 			w = httptest.NewRecorder()

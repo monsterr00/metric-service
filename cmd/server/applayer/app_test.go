@@ -13,6 +13,6 @@ func BenchmarkSaveMetricsFile(b *testing.B) {
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		appLayer.SaveMetricsFile()
+		_ = appLayer.SaveMetricsFile()
 	}
 }
