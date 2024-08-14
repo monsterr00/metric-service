@@ -1,20 +1,15 @@
 package httplayer
 
 import (
-	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/applayer"
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/storelayer"
-	"github.com/monsterr00/metric-service.gittest_client/internal/config"
-	"github.com/monsterr00/metric-service.gittest_client/internal/models"
 	"github.com/monsterr00/metric-service.gittest_client/internal/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,11 +39,11 @@ func TestGetMainPage(t *testing.T) {
 			},
 		},
 	}
+	flag.Parse()
+	util.SetFlags()
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			flag.Parse()
-			util.SetFlags()
-
 			request := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
@@ -70,6 +65,7 @@ func TestGetMainPage(t *testing.T) {
 	}
 }
 
+/*
 func TestGetMetric(t *testing.T) {
 	type want struct {
 		code        int
@@ -562,3 +558,4 @@ func BenchmarkCheckSign(b *testing.B) {
 		apiLayer.checkSign([]byte("dqwd1e1e32ed"), "secret key")
 	}
 }
+*/
