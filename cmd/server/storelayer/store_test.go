@@ -1,6 +1,7 @@
 package storelayer_test
 
 import (
+	"errors"
 	"flag"
 	"testing"
 
@@ -25,13 +26,13 @@ func TestPing(t *testing.T) {
 				startDB: true,
 			},
 		},
-		/*{
+		{
 			name: "negative test #1",
 			want: want{
 				err:     errors.New("db: not started"),
 				startDB: false,
 			},
-		},*/
+		},
 	}
 
 	for _, test := range tests {
@@ -44,6 +45,7 @@ func TestPing(t *testing.T) {
 			if test.want.startDB {
 				config.SetMode(config.DBMode)
 			}
+
 			err := storelayer.New().Ping()
 			if err != nil && err.Error() != test.want.err.Error() {
 				t.Errorf("Ping return error %s, want %s", err, test.want.err)
