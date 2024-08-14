@@ -14,8 +14,8 @@ func init() {
 	flag.Int64Var(&config.ServerOptions.StoreInterval, "i", 300, "server file store interval")
 	flag.StringVar(&config.ServerOptions.FileStoragePath, "f", "tmp/metrics-db.json", "server metric storage path")
 	flag.BoolVar(&config.ServerOptions.Restore, "r", true, "server read metrics on start")
-	flag.StringVar(&config.ServerOptions.DBaddress, "d", "host=postgres user=postgres password=postgres dbname=praktikum sslmode=disablee", "DB address")
 	//flag.StringVar(&config.ServerOptions.DBaddress, "d", "host=localhost user=postgres password=postgres1 dbname=metrics sslmode=disable", "DB address")
+	flag.StringVar(&config.ServerOptions.DBaddress, "d", "", "DB address")
 	flag.StringVar(&config.ServerOptions.Key, "k", "", "secret key")
 }
 

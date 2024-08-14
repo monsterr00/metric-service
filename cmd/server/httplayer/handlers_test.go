@@ -46,6 +46,9 @@ func TestGetMainPage(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			flag.Parse()
+			util.SetFlags()
+
 			request := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
@@ -156,6 +159,9 @@ func TestGetMetric(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			flag.Parse()
+			util.SetFlags()
+
 			api := &httpAPI{
 				router: chi.NewRouter(),
 				app:    applayer.New(storelayer.New()),
@@ -279,6 +285,9 @@ func TestGetMetricNoJSON(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			flag.Parse()
+			util.SetFlags()
+
 			api := &httpAPI{
 				router: chi.NewRouter(),
 				app:    applayer.New(storelayer.New()),
@@ -370,6 +379,9 @@ func TestPostMetricNoJSON(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			flag.Parse()
+			util.SetFlags()
+
 			api := &httpAPI{
 				router: chi.NewRouter(),
 				app:    applayer.New(storelayer.New()),
@@ -426,7 +438,7 @@ func TestPostMetric(t *testing.T) {
 					Value: &value,
 				},
 			},
-			flag: true,
+			flag: false,
 		},
 		{
 			name: "positive test #2",
@@ -474,7 +486,7 @@ func TestPostMetric(t *testing.T) {
 					Value: &value,
 				},
 			},
-			flag: true,
+			flag: false,
 		},
 		{
 			name: "negative test #1",
@@ -498,7 +510,7 @@ func TestPostMetric(t *testing.T) {
 					Value: &value,
 				},
 			},
-			flag: true,
+			flag: false,
 		},
 	}
 	for _, test := range tests {
@@ -539,7 +551,6 @@ func TestPostMetric(t *testing.T) {
 		})
 	}
 }
-
 func BenchmarkCheckSign(b *testing.B) {
 	b.StopTimer()
 	storeLayer := storelayer.New()
