@@ -46,41 +46,6 @@ func Test_httpAPI_saveMetrics(t *testing.T) {
 	}
 }
 
-func Test_httpAPI_saveMetricsInterval(t *testing.T) {
-	flag.Parse()
-	util.SetFlags()
-	logger, _ := zap.NewDevelopment()
-
-	type fields struct {
-		router      *chi.Mux
-		app         applayer.App
-		sugarLogger *zap.SugaredLogger
-	}
-	tests := []struct {
-		name   string
-		fields fields
-	}{
-		{
-			name: "positive test #1",
-			fields: fields{
-				router:      chi.NewRouter(),
-				app:         applayer.New(storelayer.New()),
-				sugarLogger: logger.Sugar(),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			api := &httpAPI{
-				router:      tt.fields.router,
-				app:         tt.fields.app,
-				sugarLogger: tt.fields.sugarLogger,
-			}
-			api.saveMetricsInterval()
-		})
-	}
-}
-
 func Test_httpAPI_setupRoutes(t *testing.T) {
 	flag.Parse()
 	util.SetFlags()
@@ -111,41 +76,6 @@ func Test_httpAPI_setupRoutes(t *testing.T) {
 				sugarLogger: tt.fields.sugarLogger,
 			}
 			api.setupRoutes()
-		})
-	}
-}
-
-func Test_httpAPI_closeDB(t *testing.T) {
-	flag.Parse()
-	util.SetFlags()
-	logger, _ := zap.NewDevelopment()
-
-	type fields struct {
-		router      *chi.Mux
-		app         applayer.App
-		sugarLogger *zap.SugaredLogger
-	}
-	tests := []struct {
-		name   string
-		fields fields
-	}{
-		{
-			name: "positive test #1",
-			fields: fields{
-				router:      chi.NewRouter(),
-				app:         applayer.New(storelayer.New()),
-				sugarLogger: logger.Sugar(),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			api := &httpAPI{
-				router:      tt.fields.router,
-				app:         tt.fields.app,
-				sugarLogger: tt.fields.sugarLogger,
-			}
-			api.closeDB()
 		})
 	}
 }

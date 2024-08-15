@@ -19,13 +19,6 @@ func TestPing(t *testing.T) {
 		name string
 		want want
 	}{
-		/*{
-			name: "positive test #1",
-			want: want{
-				err:     nil,
-				startDB: true,
-			},
-		},*/
 		{
 			name: "negative test #1",
 			want: want{
