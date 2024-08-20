@@ -90,24 +90,24 @@ func (api *app) SaveMetricsFile() error {
 	}
 
 	for _, v := range metrics {
-		data, err := json.Marshal(v)
-		if err != nil {
+		data, err2 := json.Marshal(v)
+		if err2 != nil {
 			return err
 		}
 
 		// записываем событие в буфер
-		if _, err := writer.Write(data); err != nil {
-			return err
+		if _, err2 := writer.Write(data); err2 != nil {
+			return err2
 		}
 
 		// добавляем перенос строки
-		if err := writer.WriteByte('\n'); err != nil {
-			return err
+		if err2 := writer.WriteByte('\n'); err2 != nil {
+			return err2
 		}
 
 		// записываем буфер в файл
-		if err := writer.Flush(); err != nil {
-			return err
+		if err2 := writer.Flush(); err2 != nil {
+			return err2
 		}
 	}
 

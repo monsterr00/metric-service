@@ -18,8 +18,8 @@ func Test_app_SetMetrics(t *testing.T) {
 		store   storelayer.Store
 	}
 	tests := []struct {
-		name   string
 		fields fields
+		name   string
 	}{
 		{
 			name: "positive test #1",
