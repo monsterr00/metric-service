@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"flag"
@@ -18,7 +18,8 @@ func init() {
 	flag.StringVar(&config.ServerOptions.Key, "k", "", "secret key")
 }
 
-func setFlags() {
+// SetFlags инициализирует настройки программы.
+func SetFlags() {
 	var err error
 
 	envAddress, isSet := os.LookupEnv("ADDRESS")

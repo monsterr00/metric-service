@@ -24,10 +24,14 @@ func NewPool() *Pool {
 	}
 }
 
+// Run запускает фабрику.
 func (p *Pool) Run(ctx context.Context) {
 	for i := 0; i < int(config.ClientOptions.PoolWorkers); i++ {
+		p.wg.Add(1)
 		go p.doWork()
 	}
+
+	p.wg.Wait()
 
 	for {
 		select {
@@ -44,7 +48,9 @@ func (p *Pool) Run(ctx context.Context) {
 	}
 }
 
+// doWork отправвляет запросы из очереди на сервер.
 func (p *Pool) doWork() {
+	defer p.wg.Done()
 	for r := range p.queue {
 		requestURL := fmt.Sprintf("%s%s%s", "http://", config.ClientOptions.Host, "/updates/")
 		req, err := r.Post(requestURL)
@@ -57,10 +63,12 @@ func (p *Pool) doWork() {
 	}
 }
 
+// Add добавляет post-запрос в очередь.
 func (p *Pool) Add(r *resty.Request) {
 	p.queue <- r
 }
 
+// Stop останавливает работу фабрики.
 func (p *Pool) Stop() {
 	close(p.queue)
 	close(p.errors)

@@ -23,11 +23,13 @@ type App interface {
 	Metric(ctx context.Context, id string, mtype string) (models.Metric, error)
 	SaveMetricsFile() error
 	LoadMetricsFile() error
+	LoadMetricsDB() error
 	AddMetric(ctx context.Context, metric models.Metric) error
 	PingDB() error
 	CloseDB() error
 }
 
+// New инициализирует уровень app.
 func New(storeLayer storelayer.Store) *app {
 	return &app{
 		metrics: make(map[string]models.Metric),
@@ -35,18 +37,13 @@ func New(storeLayer storelayer.Store) *app {
 	}
 }
 
+// Metrics возвращает сохраненные метрики.
 func (api *app) Metrics(ctx context.Context) (map[string]models.Metric, error) {
-	if config.ServerOptions.Mode == config.DBMode {
-		return api.fetchMetrics(ctx)
-	}
-
 	return api.metrics, nil
 }
 
+// Metric возвращает сохраненную метрику.
 func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Metric, error) {
-	if config.ServerOptions.Mode == config.DBMode {
-		return api.getMetricByID(ctx, id, mtype)
-	}
 	metric, isSet := api.metrics[id]
 	if isSet {
 		return metric, nil
@@ -55,14 +52,22 @@ func (api *app) Metric(ctx context.Context, id string, mtype string) (models.Met
 	return metric, errors.New("server: no metric")
 }
 
+// AddMetric сохраняет метрику.
 func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
-	if config.ServerOptions.Mode == config.DBMode {
-		_, err := api.getMetricByID(ctx, metric.ID, metric.MType)
-		if err == nil {
-			return api.updateMetric(ctx, metric)
-		}
+	var err error
 
-		return api.createMetric(ctx, metric)
+	if config.ServerOptions.Mode == config.DBMode {
+		_, isSet := api.metrics[metric.ID]
+
+		if isSet {
+			err = api.updateMetric(ctx, metric)
+		} else {
+			err = api.createMetric(ctx, metric)
+		}
+	}
+
+	if err != nil {
+		return err
 	}
 
 	var m sync.RWMutex
@@ -72,6 +77,7 @@ func (api *app) AddMetric(ctx context.Context, metric models.Metric) error {
 	return nil
 }
 
+// SaveMetricsFile записывает в файл сохраненные метрики.
 func (api *app) SaveMetricsFile() error {
 	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -112,6 +118,7 @@ func (api *app) SaveMetricsFile() error {
 	return nil
 }
 
+// LoadMetricsFile загружает в мапу метрики, сохраненные в файле.
 func (api *app) LoadMetricsFile() error {
 	file, err := os.OpenFile(config.ServerOptions.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
@@ -139,6 +146,19 @@ func (api *app) LoadMetricsFile() error {
 	return nil
 }
 
+// LoadMetricsDB загружает в мапу метрики, сохраненные в БД.
+func (api *app) LoadMetricsDB() error {
+	var err error
+	ctx := context.Background()
+
+	api.metrics, err = api.fetchMetrics(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// PingDB возвращает состояние БД
 func (api *app) PingDB() error {
 	err := api.store.Ping()
 	if err != nil {
@@ -147,6 +167,7 @@ func (api *app) PingDB() error {
 	return nil
 }
 
+// CloseDB закрывает соединения к БД.
 func (api *app) CloseDB() error {
 	err := api.store.Close()
 	if err != nil {
@@ -155,18 +176,17 @@ func (api *app) CloseDB() error {
 	return nil
 }
 
+// createMetric создает новую запись с метрикой в БД.
 func (api *app) createMetric(ctx context.Context, metric models.Metric) error {
 	return api.store.Create(ctx, metric)
 }
 
+// updateMetric обновляет данные о метрике в БД.
 func (api *app) updateMetric(ctx context.Context, metric models.Metric) error {
 	return api.store.Update(ctx, metric)
 }
 
-func (api *app) getMetricByID(ctx context.Context, id string, mtype string) (models.Metric, error) {
-	return api.store.GetByID(ctx, id, mtype)
-}
-
+// fetchMetrics возвращает все метрики из БД.
 func (api *app) fetchMetrics(ctx context.Context) (map[string]models.Metric, error) {
 	return api.store.Fetch(ctx)
 }
