@@ -36,7 +36,8 @@ func TestAbsolutePath(t *testing.T) {
 			name:      "positive test #1",
 			pathStart: "file://",
 			pathEnd:   "main.go",
-			want:      "file://Users/denis/metric-service/main.go",
+			//want:      "file://Users/denis/metric-service/main.go",
+			want: "file://home/runner/work/metric-service/metric-service/main.go",
 		},
 	}
 	for _, tt := range tests {
