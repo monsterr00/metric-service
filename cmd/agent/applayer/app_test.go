@@ -12,7 +12,7 @@ var (
 	value2 int64   = 25
 )
 
-func Test_app_SetMetrics(t *testing.T) {
+func Test_app_GenMetricsStats(t *testing.T) {
 	type fields struct {
 		metrics map[string]models.Metric
 		store   storelayer.Store

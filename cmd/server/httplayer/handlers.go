@@ -1,3 +1,5 @@
+// Пакет check предназначен для проверки знаний студентов.
+
 package httplayer
 
 import (

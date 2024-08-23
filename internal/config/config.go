@@ -1,5 +1,6 @@
 package config
 
+// Режимы работы программы.
 const (
 	DBMode     = "DB"
 	FileMode   = "file"
@@ -32,7 +33,35 @@ var ClientOptions struct {
 	BatchSize      int64
 }
 
+// Переменные для хранения информации о версии сборки.
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
+// Тип для ведения информации о версии сборки.
+type VersionInfo struct {
+	BuildVersion string
+	BuildCommit  string
+	BuildDate    string
+}
+
 // SetMode устанавливает режим работы приложения, используется в тестировании.
 func SetMode(mode string) {
 	ServerOptions.Mode = mode
+}
+
+// GetVersionInfo возвращает информацию о версии сборки.
+func GetVersionInfo() *VersionInfo {
+	return &VersionInfo{
+		BuildVersion: buildVersion,
+		BuildCommit:  buildCommit,
+		BuildDate:    buildDate,
+	}
+}
+
+// SetSignMode устанавливает режим подписи отправляемыъ сообщений, используется в тестировании.
+func SetSignMode(mode bool) {
+	ClientOptions.SignMode = mode
 }
