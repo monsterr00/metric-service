@@ -1,6 +1,7 @@
 package httplayer
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -8,12 +9,15 @@ import (
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/storelayer"
 )
 
-func Example_httpAPI_getMetricNoJSON() {
+func Example_getMetricNoJSON() {
 	api := &httpAPI{
 		router: chi.NewRouter(),
 		app:    applayer.New(storelayer.New()),
 	}
 
 	http.HandleFunc("/value/{metricType}/{metricName}", api.getMetricNoJSON)
-	http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
