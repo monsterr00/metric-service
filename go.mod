@@ -1,6 +1,6 @@
 module github.com/monsterr00/metric-service.gittest_client
 
-go 1.22.1
+go 1.21
 
 require (
 	github.com/gnieto/mulint v0.0.0-20200720150327-acc59722c8e6
@@ -15,12 +15,11 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/tools v0.24.0
-	honnef.co/go/tools v0.5.1
+	honnef.co/go/tools v0.4.7
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
@@ -47,6 +46,5 @@ require (
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
-	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
