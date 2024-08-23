@@ -96,8 +96,8 @@ func Test_httpAPI_setupClient(t *testing.T) {
 		workersPool *Pool
 	}
 	tests := []struct {
-		name   string
 		fields fields
+		name   string
 	}{
 		{
 			name: "positive test #1",

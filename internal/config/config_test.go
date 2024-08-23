@@ -7,8 +7,8 @@ import (
 
 func TestGetVersionInfo(t *testing.T) {
 	tests := []struct {
-		name string
 		want *VersionInfo
+		name string
 	}{
 		{
 			name: "positive test #1",
