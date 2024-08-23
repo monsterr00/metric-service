@@ -1,6 +1,6 @@
 module github.com/monsterr00/metric-service.gittest_client
 
-go 1.21.11
+go 1.20
 
 require (
 	github.com/gnieto/mulint v0.0.0-20200720150327-acc59722c8e6
