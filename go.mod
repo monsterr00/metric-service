@@ -1,6 +1,6 @@
 module github.com/monsterr00/metric-service.gittest_client
 
-go 1.22.1
+go 1.21.11
 
 require (
 	github.com/gnieto/mulint v0.0.0-20200720150327-acc59722c8e6
@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/tools v0.24.0
-	honnef.co/go/tools v0.5.1
+	//honnef.co/go/tools v0.5.1
 )
 
 require (
