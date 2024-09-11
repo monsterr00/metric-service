@@ -1,5 +1,7 @@
 package config
 
+import "crypto/rsa"
+
 // Режимы работы программы.
 const (
 	DBMode     = "DB"
@@ -9,28 +11,35 @@ const (
 
 // ServerOptions содержит настройки серверной части приложения.
 var ServerOptions struct {
-	Host            string
-	FileStoragePath string
-	DBaddress       string
-	Mode            string
-	Key             string
-	Restore         bool
-	SignMode        bool
-	StoreInterval   int64
-	ReconnectCount  int
-	ReconnectDelta  int
+	Host             string
+	FileStoragePath  string
+	DBaddress        string
+	Mode             string
+	Key              string
+	Restore          bool
+	SignMode         bool
+	StoreInterval    int64
+	ReconnectCount   int
+	ReconnectDelta   int
+	PrivateKeyPath   string
+	PrivateCryptoKey *rsa.PrivateKey
+	ConfigJSONPath   string
 }
 
 // ClientOptions содержит настройки серверной части приложения.
 var ClientOptions struct {
-	Host           string
-	Key            string
-	SignMode       bool
-	RateLimit      int64
-	PoolWorkers    int64
-	ReportInterval int64
-	PollInterval   int64
-	BatchSize      int64
+	Host            string
+	Key             string
+	SignMode        bool
+	RateLimit       int64
+	PoolWorkers     int64
+	ReportInterval  int64
+	PollInterval    int64
+	BatchSize       int64
+	PublicKeyPath   string
+	PrivateKeyPath  string
+	PublicCryptoKey *rsa.PublicKey
+	ConfigJSONPath  string
 }
 
 // Переменные для хранения информации о версии сборки.

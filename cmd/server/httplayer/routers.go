@@ -1,9 +1,13 @@
 package httplayer
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -48,7 +52,7 @@ func (api *httpAPI) setupRoutes() {
 	api.router.Get("/", api.WithLogging(api.GzipMiddleware(api.getMainPage)))
 	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.GzipMiddleware(api.postMetricNoJSON)))
 	api.router.Post("/update/", api.WithLogging(api.GzipMiddleware(api.postMetric)))
-	api.router.Post("/updates/", api.WithLogging(api.GzipMiddleware(api.postMetrics)))
+	api.router.Post("/updates/", api.WithLogging(api.Decrypt(api.GzipMiddleware(api.postMetrics))))
 	api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.GzipMiddleware(api.getMetricNoJSON)))
 	api.router.Post("/value/", api.WithLogging(api.GzipMiddleware(api.getMetric)))
 	api.router.Get("/ping", api.WithLogging(api.GzipMiddleware(api.pingDB)))
@@ -64,13 +68,33 @@ func (api *httpAPI) setupRoutes() {
 // Engage запускает http-сервер и другие службы приложения.
 func (api *httpAPI) Engage() {
 	helpers.PrintBuildInfo()
+	api.generateCryptoKeys()
 
-	err := http.ListenAndServe(config.ServerOptions.Host, api.router)
-	if err != nil {
-		log.Fatal(err)
+	var srv = http.Server{Addr: config.ServerOptions.Host, Handler: api.router}
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func() {
+		<-sigint
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+		close(idleConnsClosed)
+	}()
+
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		log.Fatalf("HTTP server ListenAndServe: %v", err)
 	}
-	api.saveMetrics()
-	api.closeDB()
+	<-idleConnsClosed
+	log.Printf("Server Shutdown gracefully start")
+	if config.ServerOptions.Mode == config.FileMode {
+		api.saveMetrics()
+	}
+
+	if config.ServerOptions.Mode == config.DBMode {
+		api.closeDB()
+	}
+	log.Printf("Server Shutdown gracefully end")
 }
 
 // saveMetrics сохраняет данные из мапы metrics в файл.

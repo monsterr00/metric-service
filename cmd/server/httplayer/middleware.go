@@ -1,11 +1,15 @@
 package httplayer
 
 import (
+	"bytes"
 	"compress/gzip"
+	"crypto/rsa"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 )
 
 type (
@@ -174,4 +178,28 @@ func (c *compressReader) Close() error {
 		return err
 	}
 	return c.zr.Close()
+}
+
+// Decrypt расшифровывает входящий запрос
+func (api *httpAPI) Decrypt(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var buf bytes.Buffer
+		var err error
+		_, err = buf.ReadFrom(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		plaintext, err := rsa.DecryptPKCS1v15(nil, config.ServerOptions.PrivateCryptoKey, buf.Bytes())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		r.Body = io.NopCloser(strings.NewReader(string(plaintext)))
+
+		h.ServeHTTP(w, r)
+	}
 }

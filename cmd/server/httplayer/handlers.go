@@ -7,9 +7,13 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -387,4 +391,24 @@ func (api *httpAPI) checkSign(body []byte, sign string) bool {
 	} else {
 		return false
 	}
+}
+
+// generateCryptoKeys загружает приватный ключ из файла
+func (api *httpAPI) generateCryptoKeys() {
+	privateKeyFile, err := os.ReadFile(config.ServerOptions.PrivateKeyPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(privateKeyFile) == 0 {
+		log.Fatal(err)
+	}
+
+	privateKeyBlock, _ := pem.Decode(privateKeyFile)
+	privateKey, err := x509.ParsePKCS1PrivateKey(privateKeyBlock.Bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	config.ServerOptions.PrivateCryptoKey = privateKey
 }

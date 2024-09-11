@@ -1,0 +1,8 @@
+{
+    "address": "localhost:8080",
+    "report_interval": 2,
+    "poll_interval": 10,
+    "crypto_key": "internal/config/public.key",
+    "secret_key": "",
+    "rate_limit": 100
+}
