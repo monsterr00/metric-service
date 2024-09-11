@@ -17,20 +17,24 @@ type app struct {
 	metrics map[string]models.Metric
 	store   storelayer.Store
 	m       sync.RWMutex
+	command chan string
+	wg      *sync.WaitGroup
 }
 
 type App interface {
 	Metrics() (map[string]models.Metric, error)
 	SetMetrics()
-	SetMetricsGOPSUTIL()
 	LockRW()
 	UnlockRW()
+	StopMetricGen()
 }
 
 func New(storeLayer storelayer.Store) *app {
 	return &app{
 		metrics: make(map[string]models.Metric),
 		store:   storeLayer,
+		command: make(chan string),
+		wg:      &sync.WaitGroup{},
 	}
 }
 
@@ -113,26 +117,40 @@ func (api *app) GenMetricsStats() {
 
 // SetMetrics запускает процесс формирования метрик.
 func (api *app) SetMetrics() {
+	defer api.wg.Done()
+	var status = "work"
+
 	for {
-		api.GenMetricsStats()
+		select {
+		case cmd := <-api.command:
+			switch cmd {
+			case "stop":
+				return
+			default:
+				status = "work"
+			}
+		default:
+			if status == "work" {
+				api.GenMetricsStats()
+				api.GetMetricsGOPSUTIL()
+			}
+		}
 	}
 }
 
-// SetMetricsGOPSUTIL формирует набор метрик с помощью пакета runtime.MemStats.
-func (api *app) SetMetricsGOPSUTIL() {
+// GetMetricsGOPSUTIL формирует набор метрик с помощью пакета runtime.MemStats.
+func (api *app) GetMetricsGOPSUTIL() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	v, _ := mem.VirtualMemory()
 
-	for {
-		api.updateMetric("TotalMemory", float64(v.Total))
-		api.updateMetric("FreeMemory", float64(v.Free))
+	api.updateMetric("TotalMemory", float64(v.Total))
+	api.updateMetric("FreeMemory", float64(v.Free))
 
-		percent, _ := cpu.Percent(0, false)
-		api.updateMetric("CPUutilization1", percent[0])
+	percent, _ := cpu.Percent(0, false)
+	api.updateMetric("CPUutilization1", percent[0])
 
-		time.Sleep(time.Duration(config.ClientOptions.PollInterval) * time.Second)
-	}
+	time.Sleep(time.Duration(config.ClientOptions.PollInterval) * time.Second)
 }
 
 // updateMetric добавляет метрику типа gauge в мапу с метриками.
@@ -145,4 +163,11 @@ func (api *app) updateMetric(id string, value float64) {
 	api.m.Lock()
 	api.metrics[id] = metric
 	api.m.Unlock()
+}
+
+// StopMetricGen останавливает работу функций генераций метрик
+func (api *app) StopMetricGen() {
+	api.wg.Add(1)
+	api.command <- "stop"
+	api.wg.Wait()
 }
