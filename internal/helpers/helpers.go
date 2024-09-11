@@ -58,7 +58,7 @@ func ReadConfigJSON(path string) (map[string]string, error) {
 	}
 	defer file.Close()
 
-	env_conf := make(map[string]string)
+	envСonf := make(map[string]string)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -66,16 +66,16 @@ func ReadConfigJSON(path string) (map[string]string, error) {
 
 		if len(splitedStr) > 1 {
 			if len(splitedStr) > 3 {
-				env_conf[splitedStr[1]] = splitedStr[3]
+				envСonf[splitedStr[1]] = splitedStr[3]
 			} else {
-				env_conf[splitedStr[1]] = strings.TrimRight(strings.TrimLeft(splitedStr[2], ": "), ",")
+				envСonf[splitedStr[1]] = strings.TrimRight(strings.TrimLeft(splitedStr[2], ": "), ",")
 			}
 		}
 	}
-	if len(env_conf) == 0 {
+	if len(envСonf) == 0 {
 		return nil, errors.New("server config json is empty")
 	}
-	return env_conf, nil
+	return envСonf, nil
 }
 
 func IsFlagPassed(name string) bool {

@@ -238,6 +238,10 @@ func (api *httpAPI) generateCryptoKeys() {
 		})
 
 		filePriv, err := os.OpenFile(config.ClientOptions.PrivateKeyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		writer := bufio.NewWriter(filePriv)
 
 		if _, err := writer.Write(privateKeyPEM); err != nil {
