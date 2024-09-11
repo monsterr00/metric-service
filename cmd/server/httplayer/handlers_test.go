@@ -27,9 +27,9 @@ var (
 
 func TestGetMainPage(t *testing.T) {
 	type want struct {
-		code        int
-		response    string
 		contentType string
+		response    string
+		code        int
 	}
 	tests := []struct {
 		name string
@@ -39,8 +39,8 @@ func TestGetMainPage(t *testing.T) {
 			name: "positive test #1",
 			want: want{
 				code:        200,
-				response:    "",
 				contentType: "text/html",
+				response:    "",
 			},
 		},
 	}
@@ -72,17 +72,17 @@ func TestGetMainPage(t *testing.T) {
 
 func TestGetMetric(t *testing.T) {
 	type want struct {
-		code        int
-		contentType string
 		metric      models.Metric
+		contentType string
+		code        int
 	}
 	tests := []struct {
 		name     string
-		want     want
 		request  string
 		post     string
 		metricID string
 		metrics  map[string]models.Metric
+		want     want
 	}{
 		{
 			name: "positive test #1",
@@ -202,15 +202,15 @@ func TestGetMetric(t *testing.T) {
 }
 func TestGetMetricNoJSON(t *testing.T) {
 	type want struct {
-		code        int
 		response    string
 		contentType string
+		code        int
 	}
 	tests := []struct {
 		name    string
-		want    want
 		request string
 		post    string
+		want    want
 	}{
 		{
 			name: "positive test #1",
@@ -322,14 +322,14 @@ func TestGetMetricNoJSON(t *testing.T) {
 }
 func TestPostMetricNoJSON(t *testing.T) {
 	type want struct {
-		code        int
 		response    string
 		contentType string
+		code        int
 	}
 	tests := []struct {
 		name    string
-		want    want
 		request string
+		want    want
 	}{
 		{
 			name: "positive test #1",
@@ -404,16 +404,16 @@ func TestPostMetricNoJSON(t *testing.T) {
 }
 func TestPostMetric(t *testing.T) {
 	type want struct {
-		code        int
-		contentType string
 		metric      models.Metric
+		contentType string
+		code        int
 	}
 	tests := []struct {
-		name     string
-		want     want
-		request  string
 		metricID string
+		request  string
+		name     string
 		metrics  map[string]models.Metric
+		want     want
 		flag     bool
 	}{
 		{

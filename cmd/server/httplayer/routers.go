@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/applayer"
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
+	"github.com/monsterr00/metric-service.gittest_client/internal/helpers"
 	"go.uber.org/zap"
 )
 
@@ -62,6 +63,8 @@ func (api *httpAPI) setupRoutes() {
 
 // Engage запускает http-сервер и другие службы приложения.
 func (api *httpAPI) Engage() {
+	helpers.PrintBuildInfo()
+
 	err := http.ListenAndServe(config.ServerOptions.Host, api.router)
 	if err != nil {
 		log.Fatal(err)

@@ -17,21 +17,21 @@ func Test_httpAPI_saveMetrics(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 
 	type fields struct {
+		sugarLogger *zap.SugaredLogger
 		router      *chi.Mux
 		app         applayer.App
-		sugarLogger *zap.SugaredLogger
 	}
 	tests := []struct {
-		name   string
 		fields fields
+		name   string
 	}{
 		{
-			name: "positive test #1",
 			fields: fields{
+				sugarLogger: logger.Sugar(),
 				router:      chi.NewRouter(),
 				app:         applayer.New(storelayer.New()),
-				sugarLogger: logger.Sugar(),
 			},
+			name: "positive test #1",
 		},
 	}
 	for _, tt := range tests {
@@ -52,20 +52,20 @@ func Test_httpAPI_setupRoutes(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	type fields struct {
 		router      *chi.Mux
-		app         applayer.App
 		sugarLogger *zap.SugaredLogger
+		app         applayer.App
 	}
 	tests := []struct {
-		name   string
 		fields fields
+		name   string
 	}{
 		{
-			name: "positive test #1",
 			fields: fields{
 				router:      chi.NewRouter(),
 				app:         applayer.New(storelayer.New()),
 				sugarLogger: logger.Sugar(),
 			},
+			name: "positive test #1",
 		},
 	}
 	for _, tt := range tests {

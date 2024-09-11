@@ -57,7 +57,7 @@ func New() *store {
 			log.Fatal(err)
 		}
 
-		if err := m.Up(); err != nil {
+		if err = m.Up(); err != nil {
 			if err != migrate.ErrNoChange {
 				log.Fatal(err)
 			}
@@ -118,6 +118,11 @@ func (storl *store) Close() error {
 
 // Create создает новую запись в таблице БД metrics.
 func (storl *store) Create(ctx context.Context, metric models.Metric) error {
+	errPing := storl.conn.Ping()
+	if errPing != nil {
+		return errPing
+	}
+
 	tx, err := storl.conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err

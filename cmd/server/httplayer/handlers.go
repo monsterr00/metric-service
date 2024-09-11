@@ -1,3 +1,5 @@
+// Пакет check предназначен для проверки знаний студентов.
+
 package httplayer
 
 import (
@@ -164,7 +166,6 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 		// значение метрики
 		memValue := splitPath[4]
 
-		var err error
 		var metric models.Metric
 
 		switch memType {
@@ -184,6 +185,8 @@ func (api *httpAPI) postMetricNoJSON(res http.ResponseWriter, req *http.Request)
 					return
 				}
 			}
+			var err error
+
 			_, err = res.Write([]byte(fmt.Sprintf("%f", *metric.Value)))
 			if err != nil {
 				fmt.Printf("Server: error writing request body %s\n", err)
@@ -326,8 +329,8 @@ func (api *httpAPI) saveJSONMetric(ctx context.Context, res http.ResponseWriter,
 		}
 
 	case counterMetricType:
-		savedMetric, err := api.app.Metric(ctx, metric.ID, metric.MType)
-		if err == nil {
+		savedMetric, err2 := api.app.Metric(ctx, metric.ID, metric.MType)
+		if err2 == nil {
 			var counter int64
 
 			// счмиываем значение счетчика метрики

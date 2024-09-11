@@ -5,6 +5,8 @@ import (
 	"flag"
 	"testing"
 
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 	"github.com/monsterr00/metric-service.gittest_client/cmd/server/storelayer"
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 	"github.com/monsterr00/metric-service.gittest_client/internal/util"
