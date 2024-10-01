@@ -1,0 +1,22 @@
+syntax = "proto3";
+package pb;
+option go_package = "github.com/monsterr00/metric-service.gittest_client/internal/pb";
+
+message Metric {
+  string id = 1;
+  string m_type = 2;
+  int64 delta = 3;
+  double value = 4;
+}
+
+message AddMetricRequest {
+  Metric metric = 1;
+}
+
+message AddMetricResponse {
+  string error = 1; // ошибка
+}
+
+service Metrics  {
+  rpc AddMetric(AddMetricRequest) returns (AddMetricResponse);
+}

@@ -1,9 +1,14 @@
 package httplayer
 
 import (
+	"context"
 	"log"
+	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -11,12 +16,15 @@ import (
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 	"github.com/monsterr00/metric-service.gittest_client/internal/helpers"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 type httpAPI struct {
 	router      *chi.Mux
 	app         applayer.App
 	sugarLogger *zap.SugaredLogger
+	grpc        *grpc.Server
+	srvHTTP     http.Server
 }
 
 // New инициализирует http-сервер и другие службы приложения.
@@ -35,9 +43,15 @@ func New(appLayer applayer.App) *httpAPI {
 		router:      chi.NewRouter(),
 		app:         appLayer,
 		sugarLogger: logger.Sugar(),
+		grpc:        grpc.NewServer(grpc.UnaryInterceptor(checkSubnetInterceptor)),
 	}
 
-	api.setupRoutes()
+	if config.ServerOptions.GrpcOn {
+		api.startGrpc()
+	} else {
+		api.setupRoutes()
+	}
+
 	api.loadMetrics()
 	go api.saveMetricsInterval()
 	return api
@@ -48,7 +62,7 @@ func (api *httpAPI) setupRoutes() {
 	api.router.Get("/", api.WithLogging(api.GzipMiddleware(api.getMainPage)))
 	api.router.Post("/update/{metricType}/{metricName}/{metricValue}", api.WithLogging(api.GzipMiddleware(api.postMetricNoJSON)))
 	api.router.Post("/update/", api.WithLogging(api.GzipMiddleware(api.postMetric)))
-	api.router.Post("/updates/", api.WithLogging(api.GzipMiddleware(api.postMetrics)))
+	api.router.Post("/updates/", api.WithLogging(api.Decrypt(api.GzipMiddleware(api.SubNetMiddleware(api.postMetrics)))))
 	api.router.Get("/value/{metricType}/{metricName}", api.WithLogging(api.GzipMiddleware(api.getMetricNoJSON)))
 	api.router.Post("/value/", api.WithLogging(api.GzipMiddleware(api.getMetric)))
 	api.router.Get("/ping", api.WithLogging(api.GzipMiddleware(api.pingDB)))
@@ -64,13 +78,23 @@ func (api *httpAPI) setupRoutes() {
 // Engage запускает http-сервер и другие службы приложения.
 func (api *httpAPI) Engage() {
 	helpers.PrintBuildInfo()
+	api.generateCryptoKeys()
 
-	err := http.ListenAndServe(config.ServerOptions.Host, api.router)
-	if err != nil {
-		log.Fatal(err)
-	}
-	api.saveMetrics()
-	api.closeDB()
+	idleConnsClosed := make(chan struct{})
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func() {
+		<-sigint
+		api.stopServer()
+		close(idleConnsClosed)
+	}()
+
+	api.startServer()
+
+	<-idleConnsClosed
+	log.Printf("Server Shutdown gracefully start")
+	api.stopServices()
+	log.Printf("Server Shutdown gracefully end")
 }
 
 // saveMetrics сохраняет данные из мапы metrics в файл.
@@ -128,5 +152,47 @@ func (api *httpAPI) closeDB() {
 	err := api.app.CloseDB()
 	if err != nil {
 		log.Printf("Server: error closing db, %s", err)
+	}
+}
+
+// startServer запускает http/grpc-серверы
+func (api *httpAPI) startServer() {
+	if config.ServerOptions.GrpcOn {
+		listen, err := net.Listen("tcp", config.ServerOptions.GrpcHost)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := api.grpc.Serve(listen); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		api.srvHTTP = http.Server{Addr: config.ServerOptions.Host, Handler: api.router}
+
+		if err := api.srvHTTP.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("HTTP server ListenAndServe: %v", err)
+		}
+	}
+}
+
+// stopServer останавливает http/grpc-серверы
+func (api *httpAPI) stopServer() {
+	if config.ServerOptions.GrpcOn {
+		api.grpc.Stop()
+	} else {
+		if err := api.srvHTTP.Shutdown(context.Background()); err != nil {
+			log.Printf("HTTP server Shutdown: %v", err)
+		}
+	}
+}
+
+// stopServer останавливает сервисы
+func (api *httpAPI) stopServices() {
+	if config.ServerOptions.Mode == config.FileMode {
+		api.saveMetrics()
+	}
+
+	if config.ServerOptions.Mode == config.DBMode {
+		api.closeDB()
 	}
 }
