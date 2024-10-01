@@ -24,7 +24,7 @@ type httpAPI struct {
 	app         applayer.App
 	sugarLogger *zap.SugaredLogger
 	grpc        *grpc.Server
-	srvHttp     http.Server
+	srvHTTP     http.Server
 }
 
 // New инициализирует http-сервер и другие службы приложения.
@@ -167,9 +167,9 @@ func (api *httpAPI) startServer() {
 			log.Fatal(err)
 		}
 	} else {
-		api.srvHttp = http.Server{Addr: config.ServerOptions.Host, Handler: api.router}
+		api.srvHTTP = http.Server{Addr: config.ServerOptions.Host, Handler: api.router}
 
-		if err := api.srvHttp.ListenAndServe(); err != http.ErrServerClosed {
+		if err := api.srvHTTP.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("HTTP server ListenAndServe: %v", err)
 		}
 	}
@@ -180,7 +180,7 @@ func (api *httpAPI) stopServer() {
 	if config.ServerOptions.GrpcOn {
 		api.grpc.Stop()
 	} else {
-		if err := api.srvHttp.Shutdown(context.Background()); err != nil {
+		if err := api.srvHTTP.Shutdown(context.Background()); err != nil {
 			log.Printf("HTTP server Shutdown: %v", err)
 		}
 	}

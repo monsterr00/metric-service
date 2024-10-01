@@ -216,7 +216,7 @@ func (api *httpAPI) prepBatchGrpc() {
 				log.Printf("Client: %s\n", err)
 			}
 			if resp.Error != "" {
-				log.Printf(resp.Error)
+				log.Println(resp.Error)
 			}
 
 			log.Printf("Req sended \n")
