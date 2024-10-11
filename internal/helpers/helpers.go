@@ -1,11 +1,15 @@
 package helpers
 
 import (
+	"bufio"
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/url"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
 )
@@ -44,4 +48,42 @@ func PrintBuildInfo() {
 	fmt.Printf("Build version: %s\n", versionInfo.BuildVersion)
 	fmt.Printf("Build date: %s\n", versionInfo.BuildDate)
 	fmt.Printf("Build commit: %s\n", versionInfo.BuildCommit)
+}
+
+// ReadConfigJSON считывает json-файл с настройками и записывает результат в мапу
+func ReadConfigJSON(path string) (map[string]string, error) {
+	file, err := os.OpenFile(path, os.O_RDONLY, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	envСonf := make(map[string]string)
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		splitedStr := strings.Split(scanner.Text(), `"`)
+
+		if len(splitedStr) > 1 {
+			if len(splitedStr) > 3 {
+				envСonf[splitedStr[1]] = splitedStr[3]
+			} else {
+				envСonf[splitedStr[1]] = strings.TrimRight(strings.TrimLeft(splitedStr[2], ": "), ",")
+			}
+		}
+	}
+	if len(envСonf) == 0 {
+		return nil, errors.New("server config json is empty")
+	}
+	return envСonf, nil
+}
+
+func IsFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
