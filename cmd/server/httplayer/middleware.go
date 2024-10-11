@@ -3,13 +3,25 @@ package httplayer
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/rsa"
+	"errors"
 	"io"
+	"log"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
 	"github.com/monsterr00/metric-service.gittest_client/internal/config"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+)
+
+var (
+	ErrSubnetCheck = errors.New("subnet check error")
 )
 
 type (
@@ -183,7 +195,6 @@ func (c *compressReader) Close() error {
 // Decrypt расшифровывает входящий запрос
 func (api *httpAPI) Decrypt(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		var buf bytes.Buffer
 		var err error
 		_, err = buf.ReadFrom(r.Body)
@@ -202,4 +213,65 @@ func (api *httpAPI) Decrypt(h http.HandlerFunc) http.HandlerFunc {
 
 		h.ServeHTTP(w, r)
 	}
+}
+
+// SubNetMiddleware проверяет IP-адрес агента на принадлежность к разрешенной подсети
+func (api *httpAPI) SubNetMiddleware(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		realP := r.Header.Get("X-Real-IP")
+		err := checkSubNet(realP)
+		if err != nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	}
+}
+
+// checkSubnetInterceptor проверяет IP-адрес агента на принадлежность к разрешенной подсети (gRPC)
+func checkSubnetInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "Missing metadata")
+	}
+
+	realP := md.Get("X-Real-IP")
+	err := checkSubNet(realP[0])
+	if err != nil {
+		return nil, status.Error(codes.PermissionDenied, err.Error())
+	}
+
+	resp, err := handler(ctx, req)
+	if err != nil {
+		log.Printf("Server: RPC failed with error: %v", err)
+	}
+
+	return resp, err
+}
+
+// checkSubNet проверяет IP-адрес на принадлежность к разрешенной подсети
+func checkSubNet(realIP string) error {
+	trustedSubnet := config.ServerOptions.TrustedSubnet
+
+	if trustedSubnet != "" {
+		if realIP == "" {
+			return ErrSubnetCheck
+		}
+
+		network, err := netip.ParsePrefix(trustedSubnet)
+		if err != nil {
+			return ErrSubnetCheck
+		}
+
+		ip, err := netip.ParseAddr(realIP)
+		if err != nil {
+			return ErrSubnetCheck
+		}
+
+		if !network.Contains(ip) {
+			return ErrSubnetCheck
+		}
+	}
+	return nil
 }

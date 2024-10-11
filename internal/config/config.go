@@ -24,6 +24,9 @@ var ServerOptions struct {
 	PrivateKeyPath   string
 	PrivateCryptoKey *rsa.PrivateKey
 	ConfigJSONPath   string
+	TrustedSubnet    string
+	GrpcOn           bool
+	GrpcHost         string
 }
 
 // ClientOptions содержит настройки серверной части приложения.
@@ -40,6 +43,8 @@ var ClientOptions struct {
 	PrivateKeyPath  string
 	PublicCryptoKey *rsa.PublicKey
 	ConfigJSONPath  string
+	GrpcOn          bool
+	GrpcHost        string
 }
 
 // Переменные для хранения информации о версии сборки.

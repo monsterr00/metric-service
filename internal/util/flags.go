@@ -20,6 +20,7 @@ func init() {
 	flag.StringVar(&config.ServerOptions.PrivateKeyPath, "crypto-key", "/internal/config/private.key", "private key path")
 	flag.StringVar(&config.ServerOptions.ConfigJSONPath, "c", "internal/config/server_config.json", "server config JSON path")
 	flag.StringVar(&config.ServerOptions.ConfigJSONPath, "config", "internal/config/server_config.json", "server config JSON path")
+	flag.StringVar(&config.ServerOptions.TrustedSubnet, "t", "", "trusted subnet")
 }
 
 // SetFlags инициализирует настройки программы.
@@ -113,6 +114,19 @@ func SetFlags() {
 		config.ServerOptions.PrivateKeyPath = jsonConfig["crypto_key"]
 	}
 
+	trustedSubnet, isSet := os.LookupEnv("TRUSTED_SUBNET")
+	if isSet && trustedSubnet != "" {
+		config.ServerOptions.TrustedSubnet = trustedSubnet
+	}
+	if !isSet && !helpers.IsFlagPassed("t") && jsonConfig != nil {
+		config.ServerOptions.TrustedSubnet = jsonConfig["trusted_subnet"]
+	}
+
 	config.ServerOptions.ReconnectCount = 3
 	config.ServerOptions.ReconnectDelta = 2
+	config.ServerOptions.GrpcHost = jsonConfig["grpc_address"]
+	config.ServerOptions.GrpcOn, err = strconv.ParseBool(jsonConfig["grpc_on"])
+	if err != nil {
+		log.Printf("Server: wrong parametr type for RESTORE")
+	}
 }

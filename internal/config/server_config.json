@@ -5,5 +5,8 @@
     "store_file": "tmp/metrics-db.json",
     "database_dsn": "", 
     "crypto_key": "internal/config/private.key",
-    "secret_key": "" 
+    "secret_key": "",
+    "trusted_subnet": "192.167.1.0/24",
+    "grpc_address": "localhost:3280",
+    "grpc_on": true
 }

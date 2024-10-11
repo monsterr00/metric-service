@@ -4,5 +4,7 @@
     "poll_interval": 10,
     "crypto_key": "internal/config/public.key",
     "secret_key": "",
-    "rate_limit": 100
+    "rate_limit": 100,
+    "grpc_address": "localhost:3280",
+    "grpc_on": true
 }

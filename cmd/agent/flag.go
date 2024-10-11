@@ -105,4 +105,9 @@ func setFlags() {
 	config.ClientOptions.BatchSize = 5
 	config.ClientOptions.PoolWorkers = 10
 	config.ClientOptions.PrivateKeyPath = "internal/config/private.key"
+	config.ClientOptions.GrpcHost = jsonConfig["grpc_address"]
+	config.ClientOptions.GrpcOn, err = strconv.ParseBool(jsonConfig["grpc_on"])
+	if err != nil {
+		log.Printf("Client: wrong parametr type for RESTORE")
+	}
 }
